@@ -1,7 +1,12 @@
-use tauri::Manager;
+use std::sync::Mutex;
+
+use tauri::{Emitter, Manager};
+
+use watch::{ScheduleState, UpdatedEvent};
 
 pub mod model;
 pub mod schedule;
+pub mod watch;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -12,28 +17,47 @@ pub fn run() {
             #[cfg(target_os = "macos")]
             app.set_activation_policy(tauri::ActivationPolicy::Accessory);
 
-            // Display and file watching come in later issues; log the result for now.
-            let loaded = app
-                .path()
-                .data_dir()
-                .map_err(|e| e.to_string())
-                .map(|dir| schedule::path_in(&dir))
-                .and_then(|path| {
-                    schedule::load_or_create(&path)
-                        .map(|s| {
-                            format!(
-                                "loaded {} entries from {}",
-                                s.entries().len(),
-                                path.display()
-                            )
-                        })
-                        .map_err(|e| e.to_string())
-                });
-            match loaded {
-                Ok(msg) | Err(msg) => eprintln!("schedule: {msg}"),
+            let path = schedule::path_in(&app.path().data_dir()?);
+            let mut state = ScheduleState::default();
+            state.apply(schedule::load_or_create(&path));
+            if let Some(err) = state.error() {
+                eprintln!("schedule: {err}");
+            }
+            app.manage(Mutex::new(state));
+
+            let handle = app.handle().clone();
+            let watch_path = path.clone();
+            let watcher = watch::watch(&path, move || {
+                let state = handle.state::<Mutex<ScheduleState>>();
+                let event = {
+                    let mut state = state.lock().unwrap_or_else(|e| e.into_inner());
+                    watch::reload(&watch_path, &mut state);
+                    state.event()
+                };
+                if let Some(err) = &event.error {
+                    eprintln!("schedule: {err}");
+                }
+                // The frontend re-evaluates the state and redraws on this event (Spec §6)
+                if let Err(e) = handle.emit(watch::UPDATED_EVENT, event) {
+                    eprintln!("schedule: cannot emit update: {e}");
+                }
+            });
+            match watcher {
+                // Keep the watcher alive for the app's lifetime
+                Ok(w) => {
+                    app.manage(w);
+                }
+                Err(e) => eprintln!("schedule: cannot watch {}: {e}", path.display()),
             }
             Ok(())
         })
+        .invoke_handler(tauri::generate_handler![schedule_status])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
+}
+
+/// Current schedule error for the frontend's first draw; later changes arrive as events.
+#[tauri::command]
+fn schedule_status(state: tauri::State<'_, Mutex<ScheduleState>>) -> UpdatedEvent {
+    state.lock().unwrap_or_else(|e| e.into_inner()).event()
 }
