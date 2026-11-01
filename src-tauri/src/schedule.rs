@@ -9,40 +9,24 @@ use serde::Deserialize;
 
 /// Default schedule written on first launch (Spec §3 "Default schedule").
 pub const DEFAULT_SCHEDULE: &str = r#"[[entry]]
-time = "08:00"
-title = "Wake up · get some sunlight"
+time = "07:00"
+title = "Wake up"
 
 [[entry]]
-time = "08:15"
-title = "Morning walk (~3,000 steps)"
+time = "07:30"
+title = "Breakfast"
 
 [[entry]]
-time = "08:45"
-title = "Shower → Meal 1"
-
-[[entry]]
-time = "09:30"
+time = "09:00"
 title = "Start work"
 
 [[entry]]
-time = "11:00"
-title = "Meal 2"
-
-[[entry]]
 time = "12:00"
-title = "Gym (~2,000 steps, walking there and back)"
+title = "Lunch"
 
 [[entry]]
-time = "13:30"
-title = "Shower → Meal 3"
-
-[[entry]]
-time = "14:00"
+time = "13:00"
 title = "Back to work"
-
-[[entry]]
-time = "16:00"
-title = "Protein shake + Oikos"
 
 [[entry]]
 time = "18:00"
@@ -50,15 +34,15 @@ title = "Finish work"
 
 [[entry]]
 time = "19:00"
-title = "Meal 4 (dinner)"
+title = "Dinner"
 
 [[entry]]
-time = "19:30"
-title = "Evening walk (top up to 10,000 steps) → Shower"
+time = "21:00"
+title = "Wind down"
 
 [[entry]]
-time = "23:30"
-title = "Dayvigo → Bed"
+time = "23:00"
+title = "Bed"
 "#;
 
 /// Minutes since local midnight, parsed from `HH:MM` (24-hour).
@@ -332,8 +316,8 @@ title = "Wake up"
     #[test]
     fn default_schedule_is_valid() {
         let s = parse(DEFAULT_SCHEDULE).unwrap();
-        assert_eq!(s.entries().len(), 13);
-        assert_eq!(s.entries()[0].time, t("08:00"));
+        assert_eq!(s.entries().len(), 9);
+        assert_eq!(s.entries()[0].time, t("07:00"));
     }
 
     fn temp_dir(name: &str) -> PathBuf {

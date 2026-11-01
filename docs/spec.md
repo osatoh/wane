@@ -40,40 +40,24 @@ Wane can optionally silence Reminders notifications on iPhone / Watch while the 
 
 ```toml
 [[entry]]
-time = "08:00"
-title = "Wake up · get some sunlight"
+time = "07:00"
+title = "Wake up"
 
 [[entry]]
-time = "08:15"
-title = "Morning walk (~3,000 steps)"
+time = "07:30"
+title = "Breakfast"
 
 [[entry]]
-time = "08:45"
-title = "Shower → Meal 1"
-
-[[entry]]
-time = "09:30"
+time = "09:00"
 title = "Start work"
 
 [[entry]]
-time = "11:00"
-title = "Meal 2"
-
-[[entry]]
 time = "12:00"
-title = "Gym (~2,000 steps, walking there and back)"
+title = "Lunch"
 
 [[entry]]
-time = "13:30"
-title = "Shower → Meal 3"
-
-[[entry]]
-time = "14:00"
+time = "13:00"
 title = "Back to work"
-
-[[entry]]
-time = "16:00"
-title = "Protein shake + Oikos"
 
 [[entry]]
 time = "18:00"
@@ -81,15 +65,15 @@ title = "Finish work"
 
 [[entry]]
 time = "19:00"
-title = "Meal 4 (dinner)"
+title = "Dinner"
 
 [[entry]]
-time = "19:30"
-title = "Evening walk (top up to 10,000 steps) → Shower"
+time = "21:00"
+title = "Wind down"
 
 [[entry]]
-time = "23:30"
-title = "Dayvigo → Bed"
+time = "23:00"
+title = "Bed"
 ```
 
 ## 4. Core Model
@@ -191,11 +175,11 @@ The goal is to avoid getting the same reminder on the Mac screen and on the Watc
 
 Use the default schedule.
 
-1. At 12:20: current task is *Gym*, next task is *Shower → Meal 3*. The gauge is about 78% full (70 of 90 minutes remaining).
-2. At 13:30:00: the current task switches to *Shower → Meal 3* within a second, and the gauge is full again with *Back to work* as the next task.
-3. At 23:45: current task is *Dayvigo → Bed*, next task is *Wake up* at 08:00 the next day.
-4. At 07:00: current task is *Dayvigo → Bed* (from the previous day), next task is *Wake up*.
-5. Close the Mac lid at 10:00 and open it at 15:00. The correct state (*Back to work* → *Protein shake + Oikos*) appears without a stale frame.
+1. At 12:20: current task is *Lunch*, next task is *Back to work*. The gauge is about 67% full (40 of 60 minutes remaining).
+2. At 13:00:00: the current task switches to *Back to work* within a second, and the gauge is full again with *Finish work* as the next task.
+3. At 23:30: current task is *Bed*, next task is *Wake up* at 07:00 the next day.
+4. At 06:00: current task is *Bed* (from the previous day), next task is *Wake up*.
+5. Close the Mac lid at 10:00 and open it at 15:00. The correct state (*Back to work* → *Finish work*) appears without a stale frame.
 6. Edit an entry's time in `schedule.toml` and save. The window updates without a restart. Saving an invalid file shows an error and keeps the old schedule.
 7. Hovering shows the remaining time. With no hover, no numbers are visible.
 8. Turning Always on Top off lets other windows cover Wane. Turning it on puts Wane back on top.

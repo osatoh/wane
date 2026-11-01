@@ -61,53 +61,62 @@ mod tests {
     }
 
     #[test]
-    fn ac1_midway_through_gym() {
+    fn ac1_midway_through_lunch() {
         let s = default();
         let st = state(at(12, 20, 0), &s);
-        assert!(st.current.title.starts_with("Gym"));
-        assert_eq!(st.next.title, "Shower → Meal 3");
-        assert!((st.remaining_fraction - 70.0 / 90.0).abs() < 1e-9);
-        assert_eq!(st.remaining_secs, 70 * 60);
-        assert_eq!(st.next_time().to_string(), "13:30");
+        assert_eq!(st.current.title, "Lunch");
+        assert_eq!(st.next.title, "Back to work");
+        assert!((st.remaining_fraction - 40.0 / 60.0).abs() < 1e-9);
+        assert_eq!(st.remaining_secs, 40 * 60);
+        assert_eq!(st.next_time().to_string(), "13:00");
     }
 
     #[test]
     fn ac2_exactly_at_entry_start_is_full() {
         let s = default();
-        let st = state(at(13, 30, 0), &s);
-        assert_eq!(st.current.title, "Shower → Meal 3");
-        assert_eq!(st.next.title, "Back to work");
+        let st = state(at(13, 0, 0), &s);
+        assert_eq!(st.current.title, "Back to work");
+        assert_eq!(st.next.title, "Finish work");
         assert_eq!(st.remaining_fraction, 1.0);
-        assert_eq!(st.remaining_secs, 30 * 60);
+        assert_eq!(st.remaining_secs, 300 * 60);
     }
 
     #[test]
     fn ac3_after_last_entry_wraps_to_next_day() {
         let s = default();
-        let st = state(at(23, 45, 0), &s);
-        assert_eq!(st.current.title, "Dayvigo → Bed");
-        assert!(st.next.title.starts_with("Wake up"));
-        assert_eq!(st.next_time().to_string(), "08:00");
-        // 23:30 → 08:00 is 510 min; 495 min remain
-        assert_eq!(st.remaining_secs, 495 * 60);
-        assert!((st.remaining_fraction - 495.0 / 510.0).abs() < 1e-9);
+        let st = state(at(23, 30, 0), &s);
+        assert_eq!(st.current.title, "Bed");
+        assert_eq!(st.next.title, "Wake up");
+        assert_eq!(st.next_time().to_string(), "07:00");
+        // 23:00 → 07:00 is 480 min; 450 min remain
+        assert_eq!(st.remaining_secs, 450 * 60);
+        assert!((st.remaining_fraction - 450.0 / 480.0).abs() < 1e-9);
     }
 
     #[test]
     fn ac4_before_first_entry_uses_previous_day() {
         let s = default();
-        let st = state(at(7, 0, 0), &s);
-        assert_eq!(st.current.title, "Dayvigo → Bed");
-        assert!(st.next.title.starts_with("Wake up"));
+        let st = state(at(6, 0, 0), &s);
+        assert_eq!(st.current.title, "Bed");
+        assert_eq!(st.next.title, "Wake up");
         assert_eq!(st.remaining_secs, 60 * 60);
-        assert!((st.remaining_fraction - 60.0 / 510.0).abs() < 1e-9);
+        assert!((st.remaining_fraction - 60.0 / 480.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn ac5_state_after_wake_matches_wall_clock() {
+        // Lid closed at 10:00 and opened at 15:00: state depends only on the time
+        let s = default();
+        let st = state(at(15, 0, 0), &s);
+        assert_eq!(st.current.title, "Back to work");
+        assert_eq!(st.next.title, "Finish work");
     }
 
     #[test]
     fn last_second_before_next_entry_is_nearly_empty() {
         let s = default();
-        let st = state(at(13, 29, 59), &s);
-        assert!(st.current.title.starts_with("Gym"));
+        let st = state(at(12, 59, 59), &s);
+        assert_eq!(st.current.title, "Lunch");
         assert_eq!(st.remaining_secs, 1);
         assert!(st.remaining_fraction > 0.0 && st.remaining_fraction < 0.001);
     }
@@ -117,8 +126,8 @@ mod tests {
         let s = default();
         for now in [0, SECS_PER_DAY - 1] {
             let st = state(now, &s);
-            assert_eq!(st.current.title, "Dayvigo → Bed");
-            assert!(st.next.title.starts_with("Wake up"));
+            assert_eq!(st.current.title, "Bed");
+            assert_eq!(st.next.title, "Wake up");
             assert!((0.0..=1.0).contains(&st.remaining_fraction));
         }
     }
@@ -128,7 +137,7 @@ mod tests {
         // A leap second or bad clock value must not panic or leave [0, 1]
         let s = default();
         let st = state(SECS_PER_DAY + 10, &s);
-        assert_eq!(st.current.title, "Dayvigo → Bed");
+        assert_eq!(st.current.title, "Bed");
         assert!((0.0..=1.0).contains(&st.remaining_fraction));
     }
 }
