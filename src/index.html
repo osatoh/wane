@@ -4,16 +4,26 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Wane</title>
-    <style>
-      /* Transparent so only the drawn content is visible (Spec §7) */
-      html,
-      body {
-        margin: 0;
-        height: 100%;
-        background: transparent;
-      }
-    </style>
+    <link rel="stylesheet" href="style.css" />
+    <script type="module" src="main.js"></script>
   </head>
-  <!-- Drag handle for the frameless window; only applies to clicks on body itself -->
-  <body data-tauri-drag-region></body>
+  <body>
+    <!-- Drag handle for the frameless window; only applies to clicks on the element itself,
+         so its children ignore pointer events (see style.css). Focusable so keyboard users can
+         reveal the time details too. -->
+    <main data-tauri-drag-region tabindex="0">
+      <div id="gauge-wrap">
+        <div id="gauge"></div>
+        <div id="details">
+          <span id="remaining"></span>
+          <span id="next-time"></span>
+        </div>
+      </div>
+      <div id="titles">
+        <p id="current-title"></p>
+        <p id="next-title"></p>
+      </div>
+      <p id="error" role="alert" hidden></p>
+    </main>
+  </body>
 </html>
