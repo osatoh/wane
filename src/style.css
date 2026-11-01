@@ -1,0 +1,128 @@
+:root {
+  --fg: #f2f2f2;
+  --fg-dim: rgba(242, 242, 242, 0.6);
+  --fill: #e8a33d;
+  --track: rgba(255, 255, 255, 0.12);
+  --error: #ff8a80;
+}
+
+/* Transparent so only the drawn content is visible (Spec §7) */
+html,
+body {
+  margin: 0;
+  height: 100%;
+  background: transparent;
+  color: var(--fg);
+  font: 13px -apple-system, BlinkMacSystemFont, sans-serif;
+  user-select: none;
+  -webkit-user-select: none;
+  cursor: default;
+}
+
+main {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px;
+  box-sizing: border-box;
+}
+
+/* Let every click reach <main>, the drag handle; hover is still detected on <main>. */
+main * {
+  pointer-events: none;
+}
+
+#gauge-wrap {
+  position: relative;
+  /* Bounded by height too, so the titles still fit in a short window. */
+  width: min(60%, 55vh);
+  aspect-ratio: 1;
+}
+
+#gauge,
+#gauge svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.gauge-track {
+  fill: var(--track);
+}
+
+.gauge-fill {
+  fill: var(--fill);
+}
+
+/* Numbers appear only on hover (Spec §5, AC7). */
+#details {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-shadow: 0 0 4px rgba(0, 0, 0, 0.8);
+  visibility: hidden;
+  opacity: 0;
+  transition: opacity 150ms, visibility 150ms;
+}
+
+main:hover #details {
+  visibility: visible;
+  opacity: 1;
+}
+
+#remaining {
+  font-weight: 600;
+}
+
+#titles {
+  text-align: center;
+  text-shadow: 0 0 4px rgba(0, 0, 0, 0.8);
+  overflow: hidden;
+  max-width: 100%;
+}
+
+#titles p {
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+#next-title {
+  color: var(--fg-dim);
+}
+
+/* On task switch the titles slide up: next becomes current. */
+#titles.advancing p {
+  animation: advance 600ms ease-out;
+}
+
+@keyframes advance {
+  from {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #titles.advancing p {
+    animation: none;
+  }
+}
+
+#error {
+  margin: 0;
+  color: var(--error);
+  font-size: 11px;
+  text-align: center;
+}
