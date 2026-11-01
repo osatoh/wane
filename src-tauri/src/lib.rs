@@ -6,6 +6,7 @@ use watch::{ScheduleState, UpdatedEvent};
 
 pub mod model;
 pub mod schedule;
+pub mod tick;
 pub mod watch;
 pub mod window;
 
@@ -46,6 +47,19 @@ pub fn run() {
                     eprintln!("schedule: cannot emit update: {e}");
                 }
             });
+            // Minute timer plus wake / clock / time zone changes (Spec §6).
+            // App launch is covered by the frontend's first draw.
+            let handle = app.handle().clone();
+            let poke = tick::spawn(move || {
+                if let Err(e) = handle.emit(tick::TICK_EVENT, ()) {
+                    eprintln!("tick: cannot emit: {e}");
+                }
+            });
+            #[cfg(target_os = "macos")]
+            tick::observe_system_changes(poke);
+            #[cfg(not(target_os = "macos"))]
+            drop(poke);
+
             match watcher {
                 // Keep the watcher alive for the app's lifetime
                 Ok(w) => {
