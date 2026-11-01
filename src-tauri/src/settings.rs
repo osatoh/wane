@@ -55,10 +55,35 @@ pub fn save(path: &Path, settings: &Settings) -> std::io::Result<()> {
     }
     let json = serde_json::to_string_pretty(settings).map_err(std::io::Error::other)?;
     // Write a sibling file and rename it over the original so a failed write
-    // never leaves a truncated settings file behind.
-    let tmp = path.with_extension("json.tmp");
-    std::fs::write(&tmp, json)?;
-    std::fs::rename(&tmp, path)
+    // never leaves a truncated settings file behind. The name is unique per
+    // process and call, and create_new makes sure no other writer shares it.
+    let tmp = unique_tmp_path(path);
+    let result = write_new(&tmp, json.as_bytes()).and_then(|()| std::fs::rename(&tmp, path));
+    if result.is_err() {
+        let _ = std::fs::remove_file(&tmp);
+    }
+    result
+}
+
+fn unique_tmp_path(path: &Path) -> PathBuf {
+    use std::sync::atomic::{AtomicU64, Ordering};
+    static COUNTER: AtomicU64 = AtomicU64::new(0);
+    let n = COUNTER.fetch_add(1, Ordering::Relaxed);
+    let name = path
+        .file_name()
+        .map(|n| n.to_string_lossy().into_owned())
+        .unwrap_or_default();
+    path.with_file_name(format!(".{name}.{}.{n}.tmp", std::process::id()))
+}
+
+fn write_new(path: &Path, bytes: &[u8]) -> std::io::Result<()> {
+    use std::io::Write;
+    let mut file = std::fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(path)?;
+    file.write_all(bytes)?;
+    file.sync_all()
 }
 
 #[cfg(test)]
@@ -104,7 +129,45 @@ mod tests {
         };
         save(&path, &s).unwrap();
         assert_eq!(load(&path), (s, None));
-        assert!(!path.with_extension("json.tmp").exists());
+        assert_no_tmp_files(&dir);
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    fn assert_no_tmp_files(dir: &Path) {
+        let settings_dir = path_in(dir);
+        let leftovers: Vec<_> = std::fs::read_dir(settings_dir.parent().unwrap())
+            .unwrap()
+            .filter_map(|e| e.ok())
+            .filter(|e| e.file_name().to_string_lossy().ends_with(".tmp"))
+            .collect();
+        assert!(leftovers.is_empty(), "leftover temp files: {leftovers:?}");
+    }
+
+    #[test]
+    fn concurrent_saves_never_corrupt_the_file() {
+        let dir = temp_dir("concurrent");
+        let path = path_in(&dir);
+        let handles: Vec<_> = (0..16)
+            .map(|i| {
+                let path = path.clone();
+                std::thread::spawn(move || {
+                    let s = Settings {
+                        always_on_top: i % 2 == 0,
+                        silence_devices: i % 3 == 0,
+                        launch_at_login: i % 5 == 0,
+                    };
+                    for _ in 0..20 {
+                        save(&path, &s).unwrap();
+                    }
+                })
+            })
+            .collect();
+        for h in handles {
+            h.join().unwrap();
+        }
+        // Whatever write won, the file must parse cleanly
+        assert_eq!(load(&path).1, None);
+        assert_no_tmp_files(&dir);
         std::fs::remove_dir_all(&dir).unwrap();
     }
 
