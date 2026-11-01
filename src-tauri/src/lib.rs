@@ -1,7 +1,10 @@
 use tauri::Manager;
 
+pub mod login_item;
+mod menu;
 pub mod model;
 pub mod schedule;
+pub mod settings;
 pub mod window;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -15,6 +18,7 @@ pub fn run() {
             app.set_activation_policy(tauri::ActivationPolicy::Accessory);
 
             window::setup(app)?;
+            menu::setup(app, app.path().data_dir()?)?;
 
             // Display and file watching come in later issues; log the result for now.
             let loaded = app
