@@ -1,12 +1,12 @@
 :root {
   --fg: #f2f2f2;
-  --fg-dim: rgba(242, 242, 242, 0.6);
+  --fg-dim: rgba(242, 242, 242, 0.7);
   --fill: #e8a33d;
-  --track: rgba(255, 255, 255, 0.12);
+  --track: rgba(255, 255, 255, 0.2);
   --error: #ff8a80;
 }
 
-/* Transparent so only the drawn content is visible (Spec §7) */
+/* Transparent so the native blur backdrop (windowEffects in tauri.conf.json) shows through (Spec §7) */
 html,
 body {
   margin: 0;
