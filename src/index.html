@@ -9,8 +9,9 @@
   </head>
   <body>
     <!-- Drag handle for the frameless window; only applies to clicks on the element itself,
-         so its children ignore pointer events (see style.css) -->
-    <main data-tauri-drag-region>
+         so its children ignore pointer events (see style.css). Focusable so keyboard users can
+         reveal the time details too. -->
+    <main data-tauri-drag-region tabindex="0">
       <div id="gauge-wrap">
         <div id="gauge"></div>
         <div id="details">

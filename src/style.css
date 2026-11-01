@@ -37,8 +37,8 @@ main * {
 
 #gauge-wrap {
   position: relative;
-  /* Bounded by height too, so the titles still fit in a short window. */
-  width: min(60%, 55vh);
+  /* Bounded by the height left after the titles and padding, so they never get clipped. */
+  width: min(60%, calc(100vh - 80px));
   aspect-ratio: 1;
 }
 
@@ -71,7 +71,8 @@ main * {
   transition: opacity 150ms, visibility 150ms;
 }
 
-main:hover #details {
+main:hover #details,
+main:focus-visible #details {
   visibility: visible;
   opacity: 1;
 }
@@ -81,6 +82,7 @@ main:hover #details {
 }
 
 #titles {
+  flex-shrink: 0;
   text-align: center;
   text-shadow: 0 0 4px rgba(0, 0, 0, 0.8);
   overflow: hidden;
