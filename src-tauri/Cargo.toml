@@ -15,7 +15,7 @@ tauri-build = { version = "2", features = [] }
 
 [dependencies]
 # Transparent window background on macOS (Spec §7)
-tauri = { version = "2", features = ["macos-private-api"] }
+tauri = { version = "2", features = ["macos-private-api", "tray-icon"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 toml = "1.1.8"
@@ -25,6 +25,8 @@ tauri-plugin-window-state = "2"
 # Native window tweaks where Tauri's options are not enough (Spec §2)
 [target.'cfg(target_os = "macos")'.dependencies]
 objc2-app-kit = "0.3"
+# Launch at Login (Spec §7)
+objc2-service-management = { version = "0.3", default-features = false, features = ["std", "objc2", "objc2-foundation", "SMAppService"] }
 # Wake / clock / time zone notifications (Spec §6)
 objc2-foundation = "0.3"
 block2 = "0.6"

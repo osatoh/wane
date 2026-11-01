@@ -4,8 +4,11 @@ use tauri::{Emitter, Manager};
 
 use watch::{ScheduleState, UpdatedEvent};
 
+pub mod login_item;
+mod menu;
 pub mod model;
 pub mod schedule;
+pub mod settings;
 pub mod tick;
 pub mod watch;
 pub mod window;
@@ -21,6 +24,7 @@ pub fn run() {
             app.set_activation_policy(tauri::ActivationPolicy::Accessory);
 
             window::setup(app)?;
+            menu::setup(app, app.path().data_dir()?)?;
 
             let path = schedule::path_in(&app.path().data_dir()?);
             let mut state = ScheduleState::default();
