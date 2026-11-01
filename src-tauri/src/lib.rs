@@ -7,15 +7,19 @@ use watch::{ScheduleState, UpdatedEvent};
 pub mod model;
 pub mod schedule;
 pub mod watch;
+pub mod window;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .plugin(window::state_plugin())
         .setup(|app| {
             // tao sets ActivationPolicy::Regular by default, which overrides LSUIElement in Info.plist.
             // Set Accessory at runtime as well so no Dock icon appears (Spec §7).
             #[cfg(target_os = "macos")]
             app.set_activation_policy(tauri::ActivationPolicy::Accessory);
+
+            window::setup(app)?;
 
             let path = schedule::path_in(&app.path().data_dir()?);
             let mut state = ScheduleState::default();

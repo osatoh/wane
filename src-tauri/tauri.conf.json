@@ -10,18 +10,30 @@
     "withGlobalTauri": true,
     "windows": [
       {
+        "label": "main",
         "title": "Wane",
         "width": 240,
-        "height": 240
+        "height": 240,
+        "decorations": false,
+        "transparent": true,
+        "shadow": false,
+        "alwaysOnTop": true,
+        "visibleOnAllWorkspaces": true,
+        "skipTaskbar": true,
+        "resizable": true,
+        "visible": false
       }
     ],
     "security": {
       "csp": null
-    }
+    },
+    "macOSPrivateApi": true
   },
   "bundle": {
     "active": true,
-    "targets": ["app"],
+    "targets": [
+      "app"
+    ],
     "macOS": {
       "minimumSystemVersion": "14.0"
     },
