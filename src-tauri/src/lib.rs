@@ -1,5 +1,6 @@
 use tauri::Manager;
 
+pub mod model;
 pub mod schedule;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
