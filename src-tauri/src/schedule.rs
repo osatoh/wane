@@ -2,7 +2,7 @@
 
 use std::fmt;
 use std::fs;
-use std::io;
+use std::io::{self, Write};
 use std::path::{Path, PathBuf};
 
 use serde::Deserialize;
@@ -208,8 +208,19 @@ pub fn load_or_create(path: &Path) -> Result<Schedule, ScheduleError> {
             if let Some(dir) = path.parent() {
                 fs::create_dir_all(dir)?;
             }
-            fs::write(path, DEFAULT_SCHEDULE)?;
-            DEFAULT_SCHEDULE.to_owned()
+            // create_new so a file saved after the read above is never overwritten
+            match fs::OpenOptions::new()
+                .write(true)
+                .create_new(true)
+                .open(path)
+            {
+                Ok(mut file) => {
+                    file.write_all(DEFAULT_SCHEDULE.as_bytes())?;
+                    DEFAULT_SCHEDULE.to_owned()
+                }
+                Err(e) if e.kind() == io::ErrorKind::AlreadyExists => fs::read_to_string(path)?,
+                Err(e) => return Err(e.into()),
+            }
         }
         Err(e) => return Err(e.into()),
     };
