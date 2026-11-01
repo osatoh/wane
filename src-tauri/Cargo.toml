@@ -19,6 +19,7 @@ tauri = { version = "2", features = ["macos-private-api"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 toml = "1.1.8"
+notify = "8"
 tauri-plugin-window-state = "2"
 
 # Native window tweaks where Tauri's options are not enough (Spec §2)
