@@ -2,8 +2,8 @@
 pub fn run() {
     tauri::Builder::default()
         .setup(|app| {
-            // tao は既定で ActivationPolicy::Regular を設定し Info.plist の LSUIElement を上書きするため、
-            // 実行時にも Accessory を明示して Dock アイコンを出さない (Spec §7)
+            // tao sets ActivationPolicy::Regular by default, which overrides LSUIElement in Info.plist.
+            // Set Accessory at runtime as well so no Dock icon appears (Spec §7).
             #[cfg(target_os = "macos")]
             app.set_activation_policy(tauri::ActivationPolicy::Accessory);
             Ok(())
