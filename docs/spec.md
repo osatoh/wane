@@ -125,7 +125,7 @@ Animations are short transitions between the minute steps. There is no continuou
 
 ## 7. Window Behavior
 
-- Small, frameless, transparent-background window that can be dragged to move.
+- Small, frameless window with a native blur backdrop (macOS HUD material, rounded corners) that can be dragged to move. The backdrop keeps the content readable over any background.
 - Always on top by default. This can be toggled on/off.
 - Show on all Spaces and above full-screen apps (`canJoinAllSpaces`, `fullScreenAuxiliary`).
 - Can be hidden and shown again.

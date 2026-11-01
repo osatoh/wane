@@ -16,6 +16,11 @@
         "height": 240,
         "decorations": false,
         "transparent": true,
+        "windowEffects": {
+          "effects": ["hudWindow"],
+          "state": "active",
+          "radius": 12
+        },
         "shadow": false,
         "alwaysOnTop": true,
         "visibleOnAllWorkspaces": true,

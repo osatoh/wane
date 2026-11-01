@@ -73,6 +73,28 @@ pub fn toggle_visibility<R: Runtime>(window: &WebviewWindow<R>) -> tauri::Result
 mod tests {
     use super::*;
 
+    /// The main window config shipped in `tauri.conf.json`, parsed with Tauri's own schema.
+    fn main_window_config() -> tauri::utils::config::WindowConfig {
+        let conf: serde_json::Value =
+            serde_json::from_str(include_str!("../tauri.conf.json")).unwrap();
+        serde_json::from_value(conf["app"]["windows"][0].clone()).unwrap()
+    }
+
+    #[test]
+    fn main_window_has_a_native_blur_backdrop() {
+        use tauri::utils::{WindowEffect, WindowEffectState};
+        let window = main_window_config();
+        assert_eq!(window.label, MAIN);
+        // Frameless and transparent so only the material shows behind the content.
+        assert!(!window.decorations);
+        assert!(window.transparent);
+        let effects = window.window_effects.expect("windowEffects is set");
+        assert_eq!(effects.effects, vec![WindowEffect::HudWindow]);
+        // Stay blurred when another app is focused; Wane is never the key window for long.
+        assert_eq!(effects.state, Some(WindowEffectState::Active));
+        assert!(effects.radius.is_some_and(|r| r > 0.0));
+    }
+
     #[test]
     fn persists_only_position_and_size() {
         assert_eq!(
