@@ -54,7 +54,11 @@ pub fn save(path: &Path, settings: &Settings) -> std::io::Result<()> {
         std::fs::create_dir_all(dir)?;
     }
     let json = serde_json::to_string_pretty(settings).map_err(std::io::Error::other)?;
-    std::fs::write(path, json)
+    // Write a sibling file and rename it over the original so a failed write
+    // never leaves a truncated settings file behind.
+    let tmp = path.with_extension("json.tmp");
+    std::fs::write(&tmp, json)?;
+    std::fs::rename(&tmp, path)
 }
 
 #[cfg(test)]
@@ -100,6 +104,7 @@ mod tests {
         };
         save(&path, &s).unwrap();
         assert_eq!(load(&path), (s, None));
+        assert!(!path.with_extension("json.tmp").exists());
         std::fs::remove_dir_all(&dir).unwrap();
     }
 

@@ -18,17 +18,30 @@ pub fn action(desired: bool, registered: bool) -> Action {
     }
 }
 
-/// Registers or unregisters the app as a login item to match `enabled`.
+/// Whether the app is registered as a login item (enabled or awaiting approval).
 #[cfg(target_os = "macos")]
-pub fn apply(enabled: bool) -> Result<(), String> {
+pub fn is_registered() -> bool {
     use objc2_service_management::{SMAppService, SMAppServiceStatus};
 
     // SAFETY: plain ServiceManagement calls with no pointer arguments.
+    let status = unsafe { SMAppService::mainAppService().status() };
+    status == SMAppServiceStatus::Enabled || status == SMAppServiceStatus::RequiresApproval
+}
+
+#[cfg(not(target_os = "macos"))]
+pub fn is_registered() -> bool {
+    false
+}
+
+/// Registers or unregisters the app as a login item to match `enabled`.
+#[cfg(target_os = "macos")]
+pub fn apply(enabled: bool) -> Result<(), String> {
+    use objc2_service_management::SMAppService;
+
+    let registered = is_registered();
+    // SAFETY: plain ServiceManagement calls with no pointer arguments.
     unsafe {
         let service = SMAppService::mainAppService();
-        let status = service.status();
-        let registered =
-            status == SMAppServiceStatus::Enabled || status == SMAppServiceStatus::RequiresApproval;
         match action(enabled, registered) {
             Action::Register => service.registerAndReturnError(),
             Action::Unregister => service.unregisterAndReturnError(),

@@ -30,7 +30,7 @@ struct MenuState<R: Runtime> {
 /// Loads the persisted toggles, applies them, and installs the menu bar item.
 pub fn setup<R: Runtime>(app: &tauri::App<R>, data_dir: PathBuf) -> tauri::Result<()> {
     let settings_path = settings::path_in(&data_dir);
-    let (settings, err) = settings::load(&settings_path);
+    let (mut settings, err) = settings::load(&settings_path);
     if let Some(w) = app.get_webview_window(window::MAIN)
         && let Err(e) = w.set_always_on_top(settings.always_on_top)
     {
@@ -39,7 +39,12 @@ pub fn setup<R: Runtime>(app: &tauri::App<R>, data_dir: PathBuf) -> tauri::Resul
     match err {
         // Do not touch the login item based on fallback defaults: that could
         // re-enable it after the user turned it off.
-        Some(e) => eprintln!("settings: using defaults: {e}"),
+        // Take the current system state instead, so saving an unrelated toggle
+        // later does not persist a Launch at Login value the user never chose.
+        Some(e) => {
+            eprintln!("settings: using defaults: {e}");
+            settings.launch_at_login = login_item::is_registered();
+        }
         // Keep the login item in sync so the default (on) takes effect on first launch.
         None => {
             if let Err(e) = login_item::apply(settings.launch_at_login) {
