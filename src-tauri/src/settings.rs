@@ -9,9 +9,11 @@ use std::path::{Path, PathBuf};
 #[serde(default)]
 pub struct Settings {
     pub always_on_top: bool,
-    /// Silence iPhone/Watch While Using Mac (Spec §8). Behavior comes in #9.
+    /// Silence iPhone/Watch While Using Mac (Spec §8).
     pub silence_devices: bool,
     pub launch_at_login: bool,
+    /// Minutes without input after which the Mac counts as not in use (Spec §8).
+    pub idle_minutes: u32,
 }
 
 impl Default for Settings {
@@ -20,7 +22,15 @@ impl Default for Settings {
             always_on_top: true,
             silence_devices: false,
             launch_at_login: true,
+            idle_minutes: 5,
         }
+    }
+}
+
+impl Settings {
+    /// Idle threshold; at least one minute so a zero never blocks the Focus for good.
+    pub fn idle_after(&self) -> std::time::Duration {
+        std::time::Duration::from_secs(u64::from(self.idle_minutes.max(1)) * 60)
     }
 }
 
@@ -110,6 +120,17 @@ mod tests {
         assert!(s.always_on_top);
         assert!(!s.silence_devices);
         assert!(s.launch_at_login);
+        assert_eq!(s.idle_minutes, 5);
+    }
+
+    #[test]
+    fn idle_threshold_is_at_least_a_minute() {
+        let s = |idle_minutes| Settings {
+            idle_minutes,
+            ..Settings::default()
+        };
+        assert_eq!(s(5).idle_after().as_secs(), 300);
+        assert_eq!(s(0).idle_after().as_secs(), 60);
     }
 
     #[test]
@@ -126,6 +147,7 @@ mod tests {
             always_on_top: false,
             silence_devices: true,
             launch_at_login: false,
+            idle_minutes: 7,
         };
         save(&path, &s).unwrap();
         assert_eq!(load(&path), (s, None));
@@ -155,6 +177,7 @@ mod tests {
                         always_on_top: i % 2 == 0,
                         silence_devices: i % 3 == 0,
                         launch_at_login: i % 5 == 0,
+                        idle_minutes: i,
                     };
                     for _ in 0..20 {
                         save(&path, &s).unwrap();

@@ -4,6 +4,7 @@ use tauri::{Emitter, Manager};
 
 use watch::{ScheduleState, UpdatedEvent};
 
+pub mod focus;
 pub mod login_item;
 mod menu;
 pub mod model;
@@ -24,7 +25,31 @@ pub fn run() {
             app.set_activation_policy(tauri::ActivationPolicy::Accessory);
 
             window::setup(app)?;
-            menu::setup(app, app.path().data_dir()?)?;
+            let settings = menu::setup(app, app.path().data_dir()?)?;
+
+            // Silence iPhone/Watch While Using Mac (Spec §8). Launch counts as "in use".
+            let handle = app.handle().clone();
+            let focus = focus::spawn(
+                settings.silence_devices,
+                settings.idle_after(),
+                focus::run_shortcut,
+                focus::idle_seconds,
+                move |e| {
+                    eprintln!("focus: {e}");
+                    // Menu updates wait for the main thread; doing them from this
+                    // worker while holding the settings lock could deadlock with
+                    // a menu click, so run the whole handler there.
+                    let h = handle.clone();
+                    if let Err(err) =
+                        handle.run_on_main_thread(move || menu::silence_failed(&h, &e))
+                    {
+                        eprintln!("focus: cannot report failure: {err}");
+                    }
+                },
+            );
+            #[cfg(target_os = "macos")]
+            focus::observe_system_changes(&focus);
+            app.manage(focus);
 
             let path = schedule::path_in(&app.path().data_dir()?);
             let mut state = ScheduleState::default();
@@ -74,8 +99,16 @@ pub fn run() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![schedule_status])
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .build(tauri::generate_context!())
+        .expect("error while building tauri application")
+        .run(|app, event| {
+            // Never leave the Focus on after quitting (Spec §8)
+            if let tauri::RunEvent::Exit = event
+                && let Some(focus) = app.try_state::<focus::Focus>()
+            {
+                focus.shutdown(focus::OFF_TIMEOUT);
+            }
+        });
 }
 
 /// Current schedule error for the frontend's first draw; later changes arrive as events.
