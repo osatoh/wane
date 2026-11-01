@@ -11,7 +11,7 @@ test("empty fraction draws nothing", () => {
 });
 
 test("half fraction is a half disc with small arc", () => {
-  assert.equal(wedgePath(0.5, 50), "M 50 50 L 50 0 A 50 50 0 0 1 50 100 Z");
+  assert.equal(wedgePath(0.5, 50), "M 50 50 L 50 0 A 50 50 0 0 0 50 100 Z");
 });
 
 test("fractions are clamped", () => {
@@ -25,4 +25,9 @@ test("fractions just below 1 still draw a full circle", () => {
 
 test("fractions just above 0 draw nothing", () => {
   assert.equal(wedgePath(0.0000001, 50), "");
+});
+
+test("the moving edge sweeps clockwise as time passes", () => {
+  // With 3/4 left, the 12-to-3 o'clock quarter is gone: the edge sits at 3 o'clock.
+  assert.equal(wedgePath(0.75, 50), "M 50 50 L 50 0 A 50 50 0 1 0 100 50 Z");
 });

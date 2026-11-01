@@ -1,4 +1,4 @@
-// Circle gauge: a disc whose filled wedge shrinks clockwise as time passes.
+// Circle gauge: a disc whose filled wedge is eaten clockwise, like a clock hand, as time passes.
 //
 // Renderer interface (shared by future renderers such as an hourglass):
 //   const r = createXxxRenderer(container);
@@ -7,11 +7,12 @@
 const SVG_NS = "http://www.w3.org/2000/svg";
 const R = 50;
 
-// SVG path of the remaining wedge, starting at 12 o'clock and going clockwise.
+// SVG path of the remaining wedge: from its moving edge clockwise to 12 o'clock.
+// It is drawn from 12 o'clock counterclockwise, so the edge advances clockwise as f falls.
 export function wedgePath(fraction, r) {
   const f = clamp(fraction);
   const angle = f * 2 * Math.PI;
-  const x = round(r + r * Math.sin(angle));
+  const x = round(r - r * Math.sin(angle));
   const y = round(r - r * Math.cos(angle));
   // Near 0 or 1 the end point rounds onto the start, where an arc draws nothing.
   if (x === r && y === 0 && f < 0.5) return "";
@@ -20,7 +21,7 @@ export function wedgePath(fraction, r) {
     return `M ${r} 0 A ${r} ${r} 0 1 1 ${r} ${2 * r} A ${r} ${r} 0 1 1 ${r} 0 Z`;
   }
   const largeArc = f > 0.5 ? 1 : 0;
-  return `M ${r} ${r} L ${r} 0 A ${r} ${r} 0 ${largeArc} 1 ${x} ${y} Z`;
+  return `M ${r} ${r} L ${r} 0 A ${r} ${r} 0 ${largeArc} 0 ${x} ${y} Z`;
 }
 
 function clamp(f) {
