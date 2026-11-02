@@ -26,8 +26,8 @@ pub struct Snapshot {
     /// Why the file could not be used, when `entries` come from the last
     /// valid schedule instead of the file.
     pub file_error: Option<String>,
-    /// File contents the entries were read from; passed back on save to detect
-    /// edits made on disk while the editor was open.
+    /// Fingerprint of the file the entries were read from; passed back on save
+    /// to detect edits made on disk while the editor was open.
     pub revision: String,
 }
 
@@ -133,7 +133,7 @@ pub fn save(
     }
     let src = schedule::to_toml(&schedule);
     settings::write_atomic(path, src.as_bytes()).map_err(io)?;
-    Ok(src)
+    Ok(revision_of(src.as_bytes()))
 }
 
 /// File contents, or nothing when the file does not exist.
@@ -144,10 +144,10 @@ fn read_bytes(path: &Path) -> io::Result<Vec<u8>> {
     }
 }
 
-/// Revision for the contents. Invalid UTF-8 is replaced rather than failing,
-/// so such a file can still be compared and overwritten from the editor.
+/// Revision for the contents: the bytes as hex. Lossless, so any change on
+/// disk is detected, including invalid UTF-8 that a text form would hide.
 fn revision_of(bytes: &[u8]) -> String {
-    String::from_utf8_lossy(bytes).into_owned()
+    bytes.iter().map(|b| format!("{b:02x}")).collect()
 }
 
 fn payload(s: &Schedule) -> Vec<EntryPayload> {
@@ -160,6 +160,11 @@ mod tests {
     use std::path::PathBuf;
 
     const VALID: &str = "[[entry]]\ntime = \"07:00\"\ntitle = \"a\"\n\n[[entry]]\ntime = \"10:00\"\ntitle = \"b\"\n";
+
+    /// Revision of a file holding `VALID`.
+    fn vrev() -> String {
+        revision_of(VALID.as_bytes())
+    }
 
     fn temp_file(name: &str, src: &str) -> (PathBuf, PathBuf) {
         let dir = std::env::temp_dir().join(format!("wane-editor-{name}-{}", std::process::id()));
@@ -189,7 +194,7 @@ mod tests {
         let (dir, path) = temp_file("load", VALID);
         let snap = load(&path, None).unwrap();
         assert_eq!(snap.entries, vec![entry("07:00", "a"), entry("10:00", "b")]);
-        assert_eq!(snap.revision, VALID);
+        assert_eq!(snap.revision, vrev());
         assert_eq!(snap.file_error, None);
         fs::remove_dir_all(dir).unwrap();
     }
@@ -200,7 +205,7 @@ mod tests {
         let last = schedule::parse(VALID).unwrap();
         let snap = load(&path, Some(&last)).unwrap();
         assert_eq!(snap.entries.len(), 2);
-        assert_eq!(snap.revision, "[[entry]\n");
+        assert_eq!(snap.revision, revision_of(b"[[entry]\n"));
         assert!(snap.file_error.unwrap().starts_with("invalid TOML"));
         fs::remove_dir_all(dir).unwrap();
     }
@@ -222,12 +227,26 @@ mod tests {
     }
 
     #[test]
+    fn save_detects_a_change_between_two_invalid_utf8_files() {
+        let (dir, path) = temp_file("utf8-conflict", "");
+        fs::write(&path, b"\xff").unwrap();
+        let snap = load(&path, None).unwrap();
+        fs::write(&path, b"\xfe").unwrap();
+        let rows = vec![row("08:00", "x"), row("09:00", "y")];
+        assert_eq!(
+            save(&path, rows, &snap.revision, false),
+            Err(SaveError::Conflict)
+        );
+        fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
     fn save_writes_sorted_entries() {
         let (dir, path) = temp_file("save", VALID);
         let rows = vec![row("12:00", "Lunch"), row("08:00", "Wake up")];
-        let rev = save(&path, rows, VALID, false).unwrap();
+        let rev = save(&path, rows, &vrev(), false).unwrap();
         let written = fs::read_to_string(&path).unwrap();
-        assert_eq!(rev, written);
+        assert_eq!(rev, revision_of(written.as_bytes()));
         let s = schedule::parse(&written).unwrap();
         assert_eq!(s.entries()[0].title, "Wake up");
         // No temp file is left next to the schedule
@@ -241,7 +260,7 @@ mod tests {
         let err = save(
             &path,
             vec![row("09:00", "a"), row("09:00", "b")],
-            VALID,
+            &vrev(),
             false,
         );
         assert_eq!(err, Err(SaveError::Invalid("duplicate time 09:00".into())));
@@ -255,9 +274,12 @@ mod tests {
         let external = VALID.replace("07:00", "06:00");
         fs::write(&path, &external).unwrap();
         let rows = || vec![row("08:00", "x"), row("09:00", "y")];
-        assert_eq!(save(&path, rows(), VALID, false), Err(SaveError::Conflict));
+        assert_eq!(
+            save(&path, rows(), &vrev(), false),
+            Err(SaveError::Conflict)
+        );
         assert_eq!(fs::read_to_string(&path).unwrap(), external);
-        save(&path, rows(), VALID, true).unwrap();
+        save(&path, rows(), &vrev(), true).unwrap();
         assert!(fs::read_to_string(&path).unwrap().contains("08:00"));
         fs::remove_dir_all(dir).unwrap();
     }

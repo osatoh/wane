@@ -24,7 +24,7 @@ export interface ScheduleSnapshot {
   entries: Entry[];
   // Set when the file is invalid; `entries` are then the last valid schedule.
   fileError: string | null;
-  // File contents the entries came from; sent back on save to detect edits on disk.
+  // Opaque fingerprint of the file the entries came from; sent back on save to detect edits on disk.
   revision: string;
 }
 // Arguments of SAVE_SCHEDULE_COMMAND; it resolves to the new revision.
