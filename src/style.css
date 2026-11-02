@@ -57,7 +57,7 @@ main * {
   fill: var(--fill);
 }
 
-/* Numbers appear only on hover (Spec §5, AC7). */
+/* Numbers and the next task appear only on hover or keyboard focus (Spec §5, AC7). */
 #details {
   position: absolute;
   inset: 0;
@@ -72,7 +72,9 @@ main * {
 }
 
 main:hover #details,
-main:focus-visible #details {
+main:focus-visible #details,
+main:hover #next-title,
+main:focus-visible #next-title {
   visibility: visible;
   opacity: 1;
 }
@@ -96,8 +98,13 @@ main:focus-visible #details {
   text-overflow: ellipsis;
 }
 
+/* Keeps its space so the layout does not jump on hover; visibility also hides it
+   while the "advance" animation drives its opacity. */
 #next-title {
   color: var(--fg-dim);
+  visibility: hidden;
+  opacity: 0;
+  transition: opacity 150ms, visibility 150ms;
 }
 
 /* On task switch the titles slide up: next becomes current. */
