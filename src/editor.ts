@@ -102,6 +102,9 @@ function validate(): void {
 
 async function load(): Promise<void> {
   let snap: ScheduleSnapshot;
+  // Freeze the form like submit() does, so edits or a save cannot race with the
+  // pending snapshot and end up shown as saved for rows that were never written
+  form.inert = true;
   try {
     snap = await invoke<ScheduleSnapshot>(LOAD_SCHEDULE_COMMAND);
   } catch (e) {
@@ -111,6 +114,8 @@ async function load(): Promise<void> {
     add.disabled = true;
     save.disabled = overwrite.disabled = true;
     return;
+  } finally {
+    form.inert = false;
   }
   loaded = true;
   add.disabled = false;
