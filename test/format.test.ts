@@ -1,6 +1,6 @@
-import { test } from "node:test";
+import { test } from "vitest";
 import assert from "node:assert/strict";
-import { formatRemaining } from "../src/format.js";
+import { formatRemaining } from "../src/format";
 
 test("formatRemaining shows minutes under an hour", () => {
   assert.equal(formatRemaining(42 * 60), "42 min");

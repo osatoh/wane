@@ -5,9 +5,19 @@
   "type": "module",
   "scripts": {
     "tauri": "tauri",
-    "test": "node --test test/*.test.js"
+    "test": "tsc --noEmit && vitest run",
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
-    "@tauri-apps/cli": "^2"
+    "@tauri-apps/cli": "^2",
+    "@types/node": "^26.6.6",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.5",
+    "vitest": "^5.0.5"
+  },
+  "dependencies": {
+    "@tauri-apps/api": "^2.12.4"
   }
 }
