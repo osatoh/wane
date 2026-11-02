@@ -82,6 +82,13 @@ impl Controller {
             // Turned back on after a failure: start over
             self.failed = false;
         }
+        if !enabled && self.enabled {
+            // Decide on "off" while still enabled: an unknown state counts as possibly on
+            self.pending_on = None;
+            let action = self.turn_off();
+            self.enabled = false;
+            return action;
+        }
         self.enabled = enabled;
         self.update(now)
     }
@@ -337,6 +344,12 @@ pub fn idle_seconds() -> f64 {
     unsafe { CGEventSourceSecondsSinceLastEventType(COMBINED_SESSION_STATE, ANY_INPUT_EVENT) }
 }
 
+/// Idle time is only sampled on macOS; elsewhere the Mac never counts as idle.
+#[cfg(not(target_os = "macos"))]
+pub fn idle_seconds() -> f64 {
+    0.0
+}
+
 /// Feeds lock / sleep / screen saver notifications to the worker.
 ///
 /// Must be called on the main thread; the observers live for the app's lifetime.
@@ -509,6 +522,23 @@ mod tests {
         assert_eq!(c.set_enabled(false, now), None);
         assert_eq!(c.shutdown(), Some(Action::Off));
         assert_eq!(c.shutdown(), None);
+    }
+
+    #[test]
+    fn toggling_off_during_the_debounce_turns_off() {
+        let now = Instant::now();
+        let mut c = Controller::new(true, now);
+        assert_eq!(c.set_enabled(false, now), Some(Action::Off));
+        assert_eq!(c.shutdown(), None);
+    }
+
+    #[test]
+    fn toggling_off_soon_after_re_enabling_from_failure_turns_off() {
+        let now = Instant::now();
+        let mut c = Controller::new(true, now);
+        c.fail();
+        c.set_enabled(true, now);
+        assert_eq!(c.set_enabled(false, now), Some(Action::Off));
     }
 
     #[test]
