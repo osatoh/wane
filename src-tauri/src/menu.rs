@@ -3,7 +3,7 @@
 use std::path::PathBuf;
 use std::sync::Mutex;
 
-use tauri::menu::{CheckMenuItem, Menu, MenuEvent, MenuItem, PredefinedMenuItem};
+use tauri::menu::{CheckMenuItem, Menu, MenuEvent, MenuItem, PredefinedMenuItem, Submenu};
 use tauri::tray::TrayIconBuilder;
 use tauri::{AppHandle, Manager, Runtime};
 
@@ -18,6 +18,18 @@ const OPEN_SCHEDULE_FILE: &str = "open_schedule_file";
 const SILENCE_DEVICES: &str = "silence_devices";
 const LAUNCH_AT_LOGIN: &str = "launch_at_login";
 const QUIT: &str = "quit";
+const OPACITY_PREFIX: &str = "opacity_";
+
+/// Menu id of a Background Opacity step, e.g. `opacity_25`.
+fn opacity_id(percent: u8) -> String {
+    format!("{OPACITY_PREFIX}{percent}")
+}
+
+/// The opacity step a menu id stands for, if it is one of the offered steps.
+fn opacity_from_id(id: &str) -> Option<u8> {
+    let percent = id.strip_prefix(OPACITY_PREFIX)?.parse().ok()?;
+    settings::OPACITY_STEPS.contains(&percent).then_some(percent)
+}
 
 /// Managed state shared by the menu event handler.
 struct MenuState<R: Runtime> {
@@ -25,6 +37,8 @@ struct MenuState<R: Runtime> {
     always_on_top: CheckMenuItem<R>,
     silence_devices: CheckMenuItem<R>,
     launch_at_login: CheckMenuItem<R>,
+    /// Background Opacity steps, paired with their percent.
+    opacity: Vec<(u8, CheckMenuItem<R>)>,
     settings_path: PathBuf,
     schedule_path: PathBuf,
 }
@@ -38,6 +52,10 @@ pub fn setup<R: Runtime>(app: &tauri::App<R>, data_dir: PathBuf) -> tauri::Resul
         && let Err(e) = w.set_always_on_top(settings.always_on_top)
     {
         eprintln!("always on top: {e}");
+    }
+    // On failure the window keeps the full backdrop, which is still usable.
+    if let Err(e) = apply_backdrop_alpha(app.handle(), settings.backdrop_alpha()) {
+        eprintln!("background opacity: {e}");
     }
     match err {
         // Do not touch the login item based on fallback defaults: that could
@@ -66,12 +84,25 @@ pub fn setup<R: Runtime>(app: &tauri::App<R>, data_dir: PathBuf) -> tauri::Resul
         settings.silence_devices,
     )?;
     let launch_at_login = check(LAUNCH_AT_LOGIN, "Launch at Login", settings.launch_at_login)?;
+    let opacity = settings::OPACITY_STEPS
+        .iter()
+        .map(|&p| {
+            check(&opacity_id(p), &format!("{p}%"), p == settings.backdrop_opacity)
+                .map(|item| (p, item))
+        })
+        .collect::<tauri::Result<Vec<_>>>()?;
+    let opacity_items: Vec<&dyn tauri::menu::IsMenuItem<R>> = opacity
+        .iter()
+        .map(|(_, item)| item as &dyn tauri::menu::IsMenuItem<R>)
+        .collect();
+    let opacity_menu = Submenu::with_items(app, "Background Opacity", true, &opacity_items)?;
 
     let menu = Menu::with_items(
         app,
         &[
             &MenuItem::with_id(app, SHOW_HIDE, "Show / Hide Window", true, None::<&str>)?,
             &always_on_top,
+            &opacity_menu,
             &MenuItem::with_id(app, EDIT_SCHEDULE, "Edit Schedule…", true, None::<&str>)?,
             &MenuItem::with_id(
                 app,
@@ -93,6 +124,7 @@ pub fn setup<R: Runtime>(app: &tauri::App<R>, data_dir: PathBuf) -> tauri::Resul
         always_on_top,
         silence_devices,
         launch_at_login,
+        opacity,
         settings_path,
         schedule_path: schedule::path_in(&data_dir),
     });
@@ -119,7 +151,10 @@ fn handle<R: Runtime>(app: &AppHandle<R>, event: &MenuEvent) {
             Ok(())
         }
         ALWAYS_ON_TOP | SILENCE_DEVICES | LAUNCH_AT_LOGIN => toggle(app, id),
-        _ => Ok(()),
+        _ => match opacity_from_id(id) {
+            Some(percent) => set_opacity(app, percent),
+            None => Ok(()),
+        },
     };
     if let Err(e) = result {
         eprintln!("menu {id}: {e}");
@@ -191,6 +226,32 @@ fn store<R: Runtime>(
     settings::save(&state.settings_path, settings)
 }
 
+/// Sets the backdrop alpha of the main window (Spec §7).
+fn apply_backdrop_alpha<R: Runtime>(app: &AppHandle<R>, alpha: f64) -> Result<(), String> {
+    with_window(app, |w| window::set_backdrop_alpha(w, alpha))
+}
+
+/// Applies a Background Opacity step, moves the radio-style check to it, and persists it.
+/// If applying fails, the check stays on the previous step and nothing is saved.
+fn set_opacity<R: Runtime>(app: &AppHandle<R>, percent: u8) -> Result<(), String> {
+    let state = app.state::<MenuState<R>>();
+    let mut settings = state.settings.lock().map_err(|e| e.to_string())?;
+    let previous = settings.backdrop_opacity;
+    settings.backdrop_opacity = percent;
+    let applied = apply_backdrop_alpha(app, settings.backdrop_alpha());
+    if applied.is_err() {
+        settings.backdrop_opacity = previous;
+    }
+    // macOS toggles the clicked item on its own, so set every check explicitly.
+    for (p, item) in &state.opacity {
+        let _ = item.set_checked(*p == settings.backdrop_opacity);
+    }
+    applied?;
+    settings::save(&state.settings_path, &settings).map_err(|e| e.to_string())?;
+    eprintln!("background opacity: {percent}% (saved)");
+    Ok(())
+}
+
 /// A Focus shortcut failed (Spec §8): turn the toggle off, persist it, and
 /// tell the user once. The worker has already stopped, so nothing retries.
 pub fn silence_failed<R: Runtime>(app: &AppHandle<R>, error: &str) {
@@ -248,5 +309,25 @@ fn open_schedule_file<R: Runtime>(app: &AppHandle<R>) -> Result<(), String> {
         Ok(())
     } else {
         Err(format!("open exited with {status}"))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn opacity_ids_round_trip_for_every_step() {
+        for step in settings::OPACITY_STEPS {
+            assert_eq!(opacity_from_id(&opacity_id(step)), Some(step));
+        }
+    }
+
+    #[test]
+    fn other_ids_are_not_opacity_steps() {
+        assert_eq!(opacity_from_id(ALWAYS_ON_TOP), None);
+        assert_eq!(opacity_from_id("opacity_abc"), None);
+        // Only offered steps count, so a stray id never stores an arbitrary value
+        assert_eq!(opacity_from_id("opacity_30"), None);
     }
 }

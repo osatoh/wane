@@ -120,7 +120,7 @@ Animations are short transitions between the minute steps. There is no continuou
 
 ## 7. Window Behavior
 
-- Small, frameless window with a native blur backdrop (macOS HUD material, rounded corners) that can be dragged to move. The backdrop keeps the content readable over any background.
+- Small, frameless window with a native blur backdrop (macOS HUD material, rounded corners) that can be dragged to move. The backdrop keeps the content readable over any background. Its opacity is adjustable (0–100%; at 0% only the gauge and text are drawn, with a text shadow and a visible gauge track to stay legible).
 - Always on top by default. This can be toggled on/off.
 - Show on all Spaces and above full-screen apps (`canJoinAllSpaces`, `fullScreenAuxiliary`).
 - Can be hidden and shown again.
@@ -131,6 +131,7 @@ Animations are short transitions between the minute steps. There is no continuou
 
 - Show / Hide window
 - Always on Top (toggle)
+- Background Opacity (submenu: 0% / 25% / 50% / 75% / 100%; radio-style check; default 100%; applies immediately and is remembered across launches)
 - Edit Schedule… (opens the editor window; see section 3)
 - Open Schedule File… (opens `schedule.toml` in the default text editor, for users who prefer the file, e.g. to keep comments, which the editor window does not preserve)
 - Silence iPhone/Watch While Using Mac (toggle; default off; see section 8)

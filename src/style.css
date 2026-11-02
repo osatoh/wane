@@ -2,11 +2,14 @@
   --fg: #f2f2f2;
   --fg-dim: rgba(242, 242, 242, 0.7);
   --fill: #e8a33d;
-  --track: rgba(255, 255, 255, 0.2);
+  /* Visible over light and dark backgrounds even with the backdrop at 0% (Spec §7) */
+  --track: rgba(128, 128, 128, 0.45);
+  /* Dark halo plus outline so text stays legible without the backdrop (Spec §7) */
+  --text-shadow: 0 0 2px rgba(0, 0, 0, 0.9), 0 0 6px rgba(0, 0, 0, 0.7);
   --error: #ff8a80;
 }
 
-/* Transparent so the native blur backdrop (windowEffects in tauri.conf.json) shows through (Spec §7) */
+/* Transparent so the native blur backdrop (windowEffects in tauri.conf.json), dimmed to the chosen opacity, shows through (Spec §7) */
 html,
 body {
   margin: 0;
@@ -28,6 +31,9 @@ main {
   gap: 8px;
   padding: 12px;
   box-sizing: border-box;
+  /* Practically invisible, but keeps every pixel hit-testable: macOS lets clicks and hover
+     fall through fully transparent pixels, which would happen at 0% backdrop opacity. */
+  background: rgba(0, 0, 0, 0.01);
 }
 
 /* Let every click reach <main>, the drag handle; hover is still detected on <main>. */
@@ -65,7 +71,7 @@ main * {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  text-shadow: 0 0 4px rgba(0, 0, 0, 0.8);
+  text-shadow: var(--text-shadow);
   visibility: hidden;
   opacity: 0;
   transition: opacity 150ms, visibility 150ms;
@@ -86,7 +92,7 @@ main:focus-visible #next-title {
 #titles {
   flex-shrink: 0;
   text-align: center;
-  text-shadow: 0 0 4px rgba(0, 0, 0, 0.8);
+  text-shadow: var(--text-shadow);
   overflow: hidden;
   max-width: 100%;
 }

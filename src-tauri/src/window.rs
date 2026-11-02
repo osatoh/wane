@@ -51,6 +51,33 @@ pub fn setup<R: Runtime>(app: &tauri::App<R>) -> tauri::Result<()> {
     window.show()
 }
 
+/// Tag of the blur view that `windowEffects` inserts (window-vibrancy's `NS_VIEW_TAG_BLUR_VIEW`).
+#[cfg(target_os = "macos")]
+const BLUR_VIEW_TAG: isize = 91376254;
+
+/// Sets the opacity of the native blur backdrop (Spec §7): 1.0 is the full
+/// material, 0.0 leaves only the web content on a transparent window.
+/// Must run on the main thread.
+pub fn set_backdrop_alpha<R: Runtime>(window: &WebviewWindow<R>, alpha: f64) -> tauri::Result<()> {
+    #[cfg(target_os = "macos")]
+    {
+        let ptr = window.ns_window()?;
+        // SAFETY: callers run on the main thread and the pointer is the live
+        // NSWindow owned by `window`.
+        let ns_window = unsafe { &*(ptr as *const objc2_app_kit::NSWindow) };
+        let blur = ns_window
+            .contentView()
+            .and_then(|v| v.viewWithTag(BLUR_VIEW_TAG));
+        match blur {
+            Some(view) => view.setAlphaValue(alpha),
+            None => return Err(std::io::Error::other("blur backdrop not found").into()),
+        }
+    }
+    #[cfg(not(target_os = "macos"))]
+    let _ = (window, alpha);
+    Ok(())
+}
+
 /// Flips Always on Top and returns the new value.
 pub fn toggle_always_on_top<R: Runtime>(window: &WebviewWindow<R>) -> tauri::Result<bool> {
     let on = !window.is_always_on_top()?;
