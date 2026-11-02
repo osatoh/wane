@@ -292,6 +292,9 @@ const SHORTCUT_TIMEOUT: Duration = Duration::from_secs(10);
 /// already running plus the "off" itself.
 pub const OFF_TIMEOUT: Duration = Duration::from_secs(2 * SHORTCUT_TIMEOUT.as_secs() + 1);
 
+/// Most stderr kept for the error message; the rest is read and discarded.
+const STDERR_LIMIT: u64 = 4096;
+
 /// Runs `/usr/bin/shortcuts run <name>`.
 pub fn run_shortcut(action: Action) -> Result<(), String> {
     use std::io::Read;
@@ -304,6 +307,17 @@ pub fn run_shortcut(action: Action) -> Result<(), String> {
         .stderr(Stdio::piped())
         .spawn()
         .map_err(|e| e.to_string())?;
+    // Drain stderr while the shortcut runs: a full pipe would block the child
+    // and look like a timeout. Only the first STDERR_LIMIT bytes are kept.
+    let drain = child.stderr.take().map(|mut pipe| {
+        std::thread::spawn(move || {
+            let mut kept = Vec::new();
+            let _ = (&mut pipe).take(STDERR_LIMIT).read_to_end(&mut kept);
+            // Discard the rest so the child never blocks on a full pipe
+            let _ = std::io::copy(&mut pipe, &mut std::io::sink());
+            kept
+        })
+    });
     let started = Instant::now();
     let status = loop {
         match child.try_wait().map_err(|e| e.to_string())? {
@@ -316,12 +330,12 @@ pub fn run_shortcut(action: Action) -> Result<(), String> {
             None => std::thread::sleep(Duration::from_millis(100)),
         }
     };
+    let stderr = drain
+        .and_then(|h| h.join().ok())
+        .map(|b| String::from_utf8_lossy(&b).into_owned())
+        .unwrap_or_default();
     if status.success() {
         return Ok(());
-    }
-    let mut stderr = String::new();
-    if let Some(mut pipe) = child.stderr.take() {
-        let _ = pipe.read_to_string(&mut stderr);
     }
     let stderr = stderr.trim();
     Err(if stderr.is_empty() {

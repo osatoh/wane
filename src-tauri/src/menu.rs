@@ -231,7 +231,13 @@ fn show_alert(message: &str) {
             message,
         ])
         .spawn();
-    if let Err(e) = spawned {
-        eprintln!("alert: {e}: {message}");
+    match spawned {
+        // Reap the child once the alert is dismissed so it never lingers as a zombie
+        Ok(mut child) => {
+            std::thread::spawn(move || {
+                let _ = child.wait();
+            });
+        }
+        Err(e) => eprintln!("alert: {e}: {message}"),
     }
 }
