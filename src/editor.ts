@@ -49,11 +49,15 @@ function renderRows(): void {
         input.value = row[field];
         input.placeholder = placeholder;
         input.setAttribute("aria-label", `${label} ${i + 1}`);
+        // Screen readers announce the inline error with its input
+        const errId = `${field}-error-${i}`;
+        input.setAttribute("aria-describedby", errId);
         input.addEventListener("input", () => {
           row[field] = input.value;
           validate();
         });
         const err = document.createElement("p");
+        err.id = errId;
         err.className = "field-error";
         err.hidden = true;
         td.append(input, err);
@@ -109,6 +113,7 @@ async function load(): Promise<void> {
     return;
   }
   loaded = true;
+  add.disabled = false;
   rows = snap.entries;
   revision = snap.revision;
   conflict.hidden = true;
