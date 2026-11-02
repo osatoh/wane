@@ -100,9 +100,9 @@ Each entry's time is the **start time** of that activity.
 ## 5. Display
 
 - **Primary visual**: a shape whose filled area shrinks as time passes. v1 uses a circle. Keep the renderer swappable so an hourglass can be added later.
-- **Always visible**: the current task's title and the next task's title.
+- **Always visible**: the current task's title.
 - **Never shown by default**: numbers.
-- **On hover**: remaining time (e.g. `42 min`, `1 h 05 min`) and the next task's clock time (e.g. `12:00`).
+- **On hover** (or keyboard focus): the next task's title, remaining time (e.g. `42 min`, `1 h 05 min`) and the next task's clock time (e.g. `12:00`).
 - When the next task starts, play a short transition: the gauge refills and the titles move forward.
 
 ## 6. Updates
@@ -120,7 +120,7 @@ Animations are short transitions between the minute steps. There is no continuou
 
 ## 7. Window Behavior
 
-- Small, frameless window with a native blur backdrop (macOS HUD material, rounded corners) that can be dragged to move. The backdrop keeps the content readable over any background.
+- Small, frameless window with a native blur backdrop (macOS HUD material, rounded corners) that can be dragged to move. The backdrop keeps the content readable over any background. Its opacity is adjustable (0–100%; at 0% only the gauge and text are drawn, with a text shadow and a visible gauge track to stay legible).
 - Always on top by default. This can be toggled on/off.
 - Show on all Spaces and above full-screen apps (`canJoinAllSpaces`, `fullScreenAuxiliary`).
 - Can be hidden and shown again.
@@ -131,6 +131,7 @@ Animations are short transitions between the minute steps. There is no continuou
 
 - Show / Hide window
 - Always on Top (toggle)
+- Background Opacity (submenu: 0% / 25% / 50% / 75% / 100%; radio-style check; default 100%; applies immediately and is remembered across launches)
 - Edit Schedule… (opens the editor window; see section 3)
 - Open Schedule File… (opens `schedule.toml` in the default text editor, for users who prefer the file, e.g. to keep comments, which the editor window does not preserve)
 - Silence iPhone/Watch While Using Mac (toggle; default off; see section 8)
@@ -192,7 +193,7 @@ Use the default schedule.
 4. At 06:00: current task is *Bed* (from the previous day), next task is *Wake up*.
 5. Close the Mac lid at 10:00 and open it at 15:00. The correct state (*Back to work* → *Finish work*) appears without a stale frame.
 6. Edit an entry's time in `schedule.toml` and save. The window updates without a restart. Saving an invalid file shows an error and keeps the old schedule.
-7. Hovering shows the remaining time. With no hover, no numbers are visible.
+7. Hovering shows the next task's title and the remaining time. With no hover, only the current task's title and the gauge are visible.
 8. Turning Always on Top off lets other windows cover Wane. Turning it on puts Wane back on top.
 9. With the Focus option on: unlocking the Mac turns the Wane Focus on, and it shows on iPhone. Locking the Mac, sleeping, or being idle for N minutes turns it off.
 10. In the editor, add an entry, change another entry's time, and Save. `schedule.toml` contains the change, the rows are sorted by time, and the window updates without a restart.

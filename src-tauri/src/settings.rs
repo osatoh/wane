@@ -14,7 +14,12 @@ pub struct Settings {
     pub launch_at_login: bool,
     /// Minutes without input after which the Mac counts as not in use (Spec §8).
     pub idle_minutes: u32,
+    /// Opacity of the blur backdrop in percent; 0 leaves only the content (Spec §7).
+    pub backdrop_opacity: u8,
 }
+
+/// Choices offered in the Background Opacity submenu, in percent.
+pub const OPACITY_STEPS: [u8; 5] = [0, 25, 50, 75, 100];
 
 impl Default for Settings {
     fn default() -> Self {
@@ -23,6 +28,7 @@ impl Default for Settings {
             silence_devices: false,
             launch_at_login: true,
             idle_minutes: 5,
+            backdrop_opacity: 100,
         }
     }
 }
@@ -31,6 +37,11 @@ impl Settings {
     /// Idle threshold; at least one minute so a zero never blocks the Focus for good.
     pub fn idle_after(&self) -> std::time::Duration {
         std::time::Duration::from_secs(u64::from(self.idle_minutes.max(1)) * 60)
+    }
+
+    /// Backdrop alpha in [0, 1]; values above 100% are treated as 100%.
+    pub fn backdrop_alpha(&self) -> f64 {
+        f64::from(self.backdrop_opacity.min(100)) / 100.0
     }
 }
 
@@ -126,6 +137,19 @@ mod tests {
         assert!(!s.silence_devices);
         assert!(s.launch_at_login);
         assert_eq!(s.idle_minutes, 5);
+        assert_eq!(s.backdrop_opacity, 100);
+    }
+
+    #[test]
+    fn backdrop_alpha_is_a_clamped_fraction() {
+        let s = |backdrop_opacity| Settings {
+            backdrop_opacity,
+            ..Settings::default()
+        };
+        assert_eq!(s(0).backdrop_alpha(), 0.0);
+        assert_eq!(s(25).backdrop_alpha(), 0.25);
+        assert_eq!(s(100).backdrop_alpha(), 1.0);
+        assert_eq!(s(200).backdrop_alpha(), 1.0);
     }
 
     #[test]
@@ -153,6 +177,7 @@ mod tests {
             silence_devices: true,
             launch_at_login: false,
             idle_minutes: 7,
+            backdrop_opacity: 25,
         };
         save(&path, &s).unwrap();
         assert_eq!(load(&path), (s, None));
@@ -183,6 +208,7 @@ mod tests {
                         silence_devices: i % 3 == 0,
                         launch_at_login: i % 5 == 0,
                         idle_minutes: i,
+                        backdrop_opacity: (i * 5) as u8,
                     };
                     for _ in 0..20 {
                         save(&path, &s).unwrap();
