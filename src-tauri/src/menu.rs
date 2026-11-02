@@ -8,7 +8,7 @@ use tauri::tray::TrayIconBuilder;
 use tauri::{AppHandle, Manager, Runtime};
 
 use crate::settings::{self, Settings};
-use crate::{login_item, window};
+use crate::{focus, login_item, window};
 
 const SHOW_HIDE: &str = "show_hide";
 const ALWAYS_ON_TOP: &str = "always_on_top";
@@ -28,7 +28,8 @@ struct MenuState<R: Runtime> {
 }
 
 /// Loads the persisted toggles, applies them, and installs the menu bar item.
-pub fn setup<R: Runtime>(app: &tauri::App<R>, data_dir: PathBuf) -> tauri::Result<()> {
+/// Returns the loaded settings for features started after the menu.
+pub fn setup<R: Runtime>(app: &tauri::App<R>, data_dir: PathBuf) -> tauri::Result<Settings> {
     let settings_path = settings::path_in(&data_dir);
     let (mut settings, err) = settings::load(&settings_path);
     if let Some(w) = app.get_webview_window(window::MAIN)
@@ -95,7 +96,7 @@ pub fn setup<R: Runtime>(app: &tauri::App<R>, data_dir: PathBuf) -> tauri::Resul
         tray = tray.icon(icon.clone());
     }
     tray.build(app)?;
-    Ok(())
+    Ok(settings)
 }
 
 fn handle<R: Runtime>(app: &AppHandle<R>, event: &MenuEvent) {
@@ -156,8 +157,12 @@ fn toggle<R: Runtime>(app: &AppHandle<R>, id: &str) -> Result<(), String> {
 
     let applied = match id {
         ALWAYS_ON_TOP => with_window(app, |w| w.set_always_on_top(on)),
-        // Focus integration (Spec §8) is implemented in #9; only the state is kept here.
-        SILENCE_DEVICES => Ok(()),
+        SILENCE_DEVICES => {
+            if let Some(focus) = app.try_state::<focus::Focus>() {
+                focus.set_enabled(on);
+            }
+            Ok(())
+        }
         _ => login_item::apply(on),
     };
     // macOS flips the check mark on click regardless of the outcome, so set it explicitly.
@@ -165,12 +170,74 @@ fn toggle<R: Runtime>(app: &AppHandle<R>, id: &str) -> Result<(), String> {
         let _ = item.set_checked(current);
         return Err(e);
     }
-    let _ = item.set_checked(on);
+    store(&state, &mut settings, id, on).map_err(|e| e.to_string())
+}
 
-    match id {
-        ALWAYS_ON_TOP => settings.always_on_top = on,
-        SILENCE_DEVICES => settings.silence_devices = on,
-        _ => settings.launch_at_login = on,
+/// Sets the check mark and the setting, then persists it.
+fn store<R: Runtime>(
+    state: &MenuState<R>,
+    settings: &mut Settings,
+    id: &str,
+    on: bool,
+) -> std::io::Result<()> {
+    let item = match id {
+        ALWAYS_ON_TOP => {
+            settings.always_on_top = on;
+            &state.always_on_top
+        }
+        SILENCE_DEVICES => {
+            settings.silence_devices = on;
+            &state.silence_devices
+        }
+        _ => {
+            settings.launch_at_login = on;
+            &state.launch_at_login
+        }
+    };
+    let _ = item.set_checked(on);
+    settings::save(&state.settings_path, settings)
+}
+
+/// A Focus shortcut failed (Spec §8): turn the toggle off, persist it, and
+/// tell the user once. The worker has already stopped, so nothing retries.
+pub fn silence_failed<R: Runtime>(app: &AppHandle<R>, error: &str) {
+    // The user may have turned the toggle back on before this ran; keep the
+    // worker in line with the menu, which is about to say "off".
+    if let Some(focus) = app.try_state::<focus::Focus>() {
+        focus.set_enabled(false);
     }
-    settings::save(&state.settings_path, &settings).map_err(|e| e.to_string())
+    let state = app.state::<MenuState<R>>();
+    let mut settings = state.settings.lock().unwrap_or_else(|e| e.into_inner());
+    if let Err(e) = store(&state, &mut settings, SILENCE_DEVICES, false) {
+        eprintln!("settings: {e}");
+    }
+    drop(settings);
+    show_alert(&format!(
+        "Could not run the Focus shortcut, so \"Silence iPhone/Watch While Using Mac\" was turned off.\n\n{error}"
+    ));
+}
+
+/// Shows a short alert without blocking the caller. The text goes in as an
+/// argument so it is never parsed as AppleScript.
+fn show_alert(message: &str) {
+    let spawned = std::process::Command::new("/usr/bin/osascript")
+        .args([
+            "-e",
+            "on run argv",
+            "-e",
+            "display alert \"Wane\" message (item 1 of argv)",
+            "-e",
+            "end run",
+            message,
+        ])
+        .spawn();
+    match spawned {
+        // Reap the child once the alert is dismissed so it never lingers as a zombie
+        Ok(mut child) => {
+            std::thread::spawn(move || {
+                let _ = child.wait();
+            });
+        }
+        Err(e) => eprintln!("alert: {e}: {message}"),
+    }
 }
