@@ -8,9 +8,6 @@
 use std::sync::{Arc, Condvar, Mutex};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
-/// Event the frontend listens to; it re-evaluates the state and redraws on each one.
-pub const TICK_EVENT: &str = "reevaluate";
-
 /// Fire slightly after the boundary so the frontend never reads 59.999 s.
 const MARGIN: Duration = Duration::from_millis(5);
 
