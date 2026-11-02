@@ -27,14 +27,25 @@ Wane can optionally silence Reminders notifications on iPhone / Watch while the 
 - On first launch, create the file with the default schedule below.
 - Watch the file and **reload automatically** when it changes. No restart is needed.
 - If the file is invalid, keep using the last valid schedule and show a short error message in the window.
-- v1 has no in-app editor. The menu bar item opens the file in the default text editor.
+- The file can also be edited in the app (see "Editor" below). The file stays the single source of truth.
 
 ### Rules
 
 - The schedule repeats every day. All days use the same schedule.
-- Each entry has a time (`HH:MM`, 24-hour, local time) and a title.
+- Each entry has a time (`HH:MM`, 24-hour, local time) and a non-empty title.
 - Entries are sorted by time on load. Duplicate times are an error.
 - At least 2 entries are required.
+
+### Editor
+
+- "Edit Schedule…" opens a separate editor window. The gauge window is unchanged.
+- Only one editor window exists at a time. "Edit Schedule…" focuses it if it is already open.
+- The editor lists all entries as rows of time (`HH:MM`, 24-hour) and title. Rows can be added, edited and deleted.
+- Validation uses the rules above. Invalid input is shown inline and Save is disabled; nothing is written.
+- Save writes `schedule.toml`, and the entries are shown sorted by time. The file watcher then reloads the schedule and the gauge updates; there is no separate update path.
+- Cancel or closing the window discards unsaved edits.
+- If `schedule.toml` changed on disk since the editor loaded it, Save warns and offers to overwrite it or discard the edits.
+- If the file is invalid when the editor opens, the editor starts from the last valid schedule.
 
 ### Default schedule
 
@@ -120,7 +131,7 @@ Animations are short transitions between the minute steps. There is no continuou
 
 - Show / Hide window
 - Always on Top (toggle)
-- Edit Schedule… (opens `schedule.toml` in the default editor)
+- Edit Schedule… (opens the editor window; see section 3)
 - Silence iPhone/Watch While Using Mac (toggle; default off; see section 8)
 - Launch at Login (toggle; default on; uses `SMAppService`)
 - Quit
@@ -167,7 +178,6 @@ The goal is to avoid getting the same reminder on the Mac screen and on the Watc
 ## 9. Out of Scope (v1)
 
 - Apple Reminders sync
-- In-app schedule editor
 - Different schedules for different weekdays
 - Wane's own notifications or sounds
 
@@ -184,3 +194,7 @@ Use the default schedule.
 7. Hovering shows the remaining time. With no hover, no numbers are visible.
 8. Turning Always on Top off lets other windows cover Wane. Turning it on puts Wane back on top.
 9. With the Focus option on: unlocking the Mac turns the Wane Focus on, and it shows on iPhone. Locking the Mac, sleeping, or being idle for N minutes turns it off.
+10. In the editor, add an entry, change another entry's time, and Save. `schedule.toml` contains the change, the rows are sorted by time, and the window updates without a restart.
+11. In the editor, delete an entry and Save. The entry is gone from the file and from the window.
+12. In the editor, enter `25:00`, an empty title, or a duplicate time, or leave only one entry. The problem is shown next to the row (or below the list), Save is disabled, and the file is not changed.
+13. Open the editor, change `schedule.toml` in a text editor, then Save in Wane. Wane warns that the file changed and writes only if the user chooses to overwrite.

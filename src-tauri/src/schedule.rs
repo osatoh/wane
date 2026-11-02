@@ -103,6 +103,8 @@ pub enum ScheduleError {
     },
     InvalidTime(String),
     DuplicateTime(TimeOfDay),
+    /// Title is empty or only whitespace.
+    EmptyTitle(TimeOfDay),
     TooFewEntries(usize),
     Io(io::Error),
 }
@@ -120,6 +122,7 @@ impl fmt::Display for ScheduleError {
             } => write!(f, "invalid TOML: {message}"),
             Self::InvalidTime(s) => write!(f, "invalid time \"{s}\" (expected HH:MM, 24-hour)"),
             Self::DuplicateTime(t) => write!(f, "duplicate time {t}"),
+            Self::EmptyTitle(t) => write!(f, "empty title at {t}"),
             Self::TooFewEntries(n) => write!(f, "at least 2 entries are required (found {n})"),
             Self::Io(e) => write!(f, "cannot access schedule file: {e}"),
         }
@@ -157,15 +160,19 @@ pub fn parse(src: &str) -> Result<Schedule, ScheduleError> {
             .map(|span| src[..span.start].matches('\n').count() + 1),
         message: e.message().to_owned(),
     })?;
+    from_entries(raw.entry.into_iter().map(|e| (e.time, e.title)).collect())
+}
+
+/// Validates `(time, title)` pairs with the same rules as the file (Spec §3).
+pub fn from_entries(raw: Vec<(String, String)>) -> Result<Schedule, ScheduleError> {
     let mut entries = raw
-        .entry
         .into_iter()
-        .map(|e| {
-            let time = TimeOfDay::parse(&e.time).ok_or(ScheduleError::InvalidTime(e.time))?;
-            Ok(Entry {
-                time,
-                title: e.title,
-            })
+        .map(|(time, title)| {
+            let time = TimeOfDay::parse(&time).ok_or(ScheduleError::InvalidTime(time))?;
+            if title.trim().is_empty() {
+                return Err(ScheduleError::EmptyTitle(time));
+            }
+            Ok(Entry { time, title })
         })
         .collect::<Result<Vec<_>, ScheduleError>>()?;
     if entries.len() < 2 {
@@ -176,6 +183,20 @@ pub fn parse(src: &str) -> Result<Schedule, ScheduleError> {
         return Err(ScheduleError::DuplicateTime(w[0].time));
     }
     Ok(Schedule { entries })
+}
+
+/// Serializes the schedule in the same layout as [`DEFAULT_SCHEDULE`].
+pub fn to_toml(schedule: &Schedule) -> String {
+    schedule
+        .entries
+        .iter()
+        .map(|e| {
+            // Let the toml crate quote and escape the title
+            let title = toml::Value::String(e.title.clone());
+            format!("[[entry]]\ntime = \"{}\"\ntitle = {title}\n", e.time)
+        })
+        .collect::<Vec<_>>()
+        .join("\n")
 }
 
 /// Schedule file under the OS data dir (`~/Library/Application Support` on macOS).
@@ -311,6 +332,57 @@ title = "Wake up"
         assert!(matches!(parse(in_entry), Err(ScheduleError::Toml { .. })));
         let top_level = "foo = 1\n[[entry]]\ntime = \"09:00\"\ntitle = \"a\"\n[[entry]]\ntime = \"10:00\"\ntitle = \"b\"\n";
         assert!(matches!(parse(top_level), Err(ScheduleError::Toml { .. })));
+    }
+
+    #[test]
+    fn rejects_empty_titles() {
+        for bad in ["", "   "] {
+            let src = format!(
+                "[[entry]]\ntime = \"09:00\"\ntitle = \"{bad}\"\n[[entry]]\ntime = \"10:00\"\ntitle = \"b\"\n"
+            );
+            assert!(
+                matches!(parse(&src), Err(ScheduleError::EmptyTitle(x)) if x == t("09:00")),
+                "{bad:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn from_entries_applies_the_file_rules() {
+        let s = from_entries(vec![
+            ("12:00".into(), "Lunch".into()),
+            ("08:00".into(), "Wake up".into()),
+        ])
+        .unwrap();
+        assert_eq!(s.entries()[0].time, t("08:00"));
+        assert!(matches!(
+            from_entries(vec![
+                ("8:00".into(), "a".into()),
+                ("10:00".into(), "b".into())
+            ]),
+            Err(ScheduleError::InvalidTime(_))
+        ));
+        assert!(matches!(
+            from_entries(vec![("08:00".into(), "a".into())]),
+            Err(ScheduleError::TooFewEntries(1))
+        ));
+    }
+
+    #[test]
+    fn to_toml_round_trips_and_escapes_titles() {
+        let s = from_entries(vec![
+            ("12:00".into(), "Lunch \"big\"\n# not a comment".into()),
+            ("08:00".into(), "Wake up".into()),
+        ])
+        .unwrap();
+        let src = to_toml(&s);
+        assert!(src.starts_with("[[entry]]\ntime = \"08:00\"\n"), "{src}");
+        assert_eq!(parse(&src).unwrap(), s);
+    }
+
+    #[test]
+    fn default_schedule_round_trips_byte_for_byte() {
+        assert_eq!(to_toml(&parse(DEFAULT_SCHEDULE).unwrap()), DEFAULT_SCHEDULE);
     }
 
     #[test]

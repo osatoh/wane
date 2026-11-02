@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Edit Schedule</title>
+    <link rel="stylesheet" href="./editor.css" />
+    <script type="module" src="./editor.ts"></script>
+  </head>
+  <body>
+    <form id="editor" novalidate>
+      <div id="conflict" role="alert" hidden>
+        <p>schedule.toml changed on disk since this editor loaded it.</p>
+        <button type="button" id="overwrite">Overwrite</button>
+        <button type="button" id="reload">Discard my edits</button>
+      </div>
+      <table>
+        <thead>
+          <tr><th>Time</th><th>Title</th><th><span class="visually-hidden">Delete</span></th></tr>
+        </thead>
+        <tbody id="rows"></tbody>
+      </table>
+      <button type="button" id="add">Add entry</button>
+      <p id="form-error" role="alert" hidden></p>
+      <footer>
+        <span id="status" role="status"></span>
+        <button type="button" id="cancel">Cancel</button>
+        <button type="submit" id="save">Save</button>
+      </footer>
+    </form>
+  </body>
+</html>

@@ -8,7 +8,7 @@ use tauri::tray::TrayIconBuilder;
 use tauri::{AppHandle, Manager, Runtime};
 
 use crate::settings::{self, Settings};
-use crate::{focus, login_item, window};
+use crate::{editor, focus, login_item, window};
 
 const SHOW_HIDE: &str = "show_hide";
 const ALWAYS_ON_TOP: &str = "always_on_top";
@@ -24,7 +24,6 @@ struct MenuState<R: Runtime> {
     silence_devices: CheckMenuItem<R>,
     launch_at_login: CheckMenuItem<R>,
     settings_path: PathBuf,
-    schedule_path: PathBuf,
 }
 
 /// Loads the persisted toggles, applies them, and installs the menu bar item.
@@ -85,7 +84,6 @@ pub fn setup<R: Runtime>(app: &tauri::App<R>, data_dir: PathBuf) -> tauri::Resul
         silence_devices,
         launch_at_login,
         settings_path,
-        schedule_path: crate::schedule::path_in(&data_dir),
     });
 
     let mut tray = TrayIconBuilder::with_id("wane")
@@ -103,7 +101,7 @@ fn handle<R: Runtime>(app: &AppHandle<R>, event: &MenuEvent) {
     let id = event.id().as_ref();
     let result = match id {
         SHOW_HIDE => with_window(app, |w| window::toggle_visibility(w).map(|_| ())),
-        EDIT_SCHEDULE => open_schedule(app),
+        EDIT_SCHEDULE => editor::open(app).map_err(|e| e.to_string()),
         QUIT => {
             app.exit(0);
             Ok(())
@@ -124,23 +122,6 @@ fn with_window<R: Runtime>(
         Some(w) => f(&w).map_err(|e| e.to_string()),
         None => Ok(()),
     }
-}
-
-/// Opens `schedule.toml` in the default text editor.
-fn open_schedule<R: Runtime>(app: &AppHandle<R>) -> Result<(), String> {
-    let state = app.state::<MenuState<R>>();
-    std::process::Command::new("/usr/bin/open")
-        .arg("-t")
-        .arg(&state.schedule_path)
-        .status()
-        .map_err(|e| e.to_string())
-        .and_then(|status| {
-            if status.success() {
-                Ok(())
-            } else {
-                Err(format!("open exited with {status}"))
-            }
-        })
 }
 
 /// Applies the check item's new state, then persists it. If applying fails,
