@@ -5,6 +5,7 @@ use tauri::{Listener, Manager};
 use watch::ScheduleState;
 
 pub mod display;
+pub mod editor;
 pub mod focus;
 pub mod login_item;
 mod menu;
@@ -59,6 +60,7 @@ pub fn run() {
                 eprintln!("schedule: {err}");
             }
             app.manage(Mutex::new(state));
+            app.manage(editor::SchedulePath(path.clone()));
 
             // The frontend asks for its first draw once it is listening (Spec §5)
             let handle = app.handle().clone();
@@ -102,6 +104,10 @@ pub fn run() {
             }
             Ok(())
         })
+        .invoke_handler(tauri::generate_handler![
+            editor::load_schedule,
+            editor::save_schedule
+        ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application")
         .run(|app, event| {
