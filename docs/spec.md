@@ -132,6 +132,7 @@ Animations are short transitions between the minute steps. There is no continuou
 - Show / Hide window
 - Always on Top (toggle)
 - Edit Schedule… (opens the editor window; see section 3)
+- Open Schedule File… (opens `schedule.toml` in the default text editor, for users who prefer the file, e.g. to keep comments, which the editor window does not preserve)
 - Silence iPhone/Watch While Using Mac (toggle; default off; see section 8)
 - Launch at Login (toggle; default on; uses `SMAppService`)
 - Quit

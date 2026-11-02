@@ -7,12 +7,14 @@ use tauri::menu::{CheckMenuItem, Menu, MenuEvent, MenuItem, PredefinedMenuItem};
 use tauri::tray::TrayIconBuilder;
 use tauri::{AppHandle, Manager, Runtime};
 
+use crate::schedule;
 use crate::settings::{self, Settings};
 use crate::{editor, focus, login_item, window};
 
 const SHOW_HIDE: &str = "show_hide";
 const ALWAYS_ON_TOP: &str = "always_on_top";
 const EDIT_SCHEDULE: &str = "edit_schedule";
+const OPEN_SCHEDULE_FILE: &str = "open_schedule_file";
 const SILENCE_DEVICES: &str = "silence_devices";
 const LAUNCH_AT_LOGIN: &str = "launch_at_login";
 const QUIT: &str = "quit";
@@ -24,6 +26,7 @@ struct MenuState<R: Runtime> {
     silence_devices: CheckMenuItem<R>,
     launch_at_login: CheckMenuItem<R>,
     settings_path: PathBuf,
+    schedule_path: PathBuf,
 }
 
 /// Loads the persisted toggles, applies them, and installs the menu bar item.
@@ -70,6 +73,13 @@ pub fn setup<R: Runtime>(app: &tauri::App<R>, data_dir: PathBuf) -> tauri::Resul
             &MenuItem::with_id(app, SHOW_HIDE, "Show / Hide Window", true, None::<&str>)?,
             &always_on_top,
             &MenuItem::with_id(app, EDIT_SCHEDULE, "Edit Schedule…", true, None::<&str>)?,
+            &MenuItem::with_id(
+                app,
+                OPEN_SCHEDULE_FILE,
+                "Open Schedule File…",
+                true,
+                None::<&str>,
+            )?,
             &PredefinedMenuItem::separator(app)?,
             &silence_devices,
             &launch_at_login,
@@ -84,6 +94,7 @@ pub fn setup<R: Runtime>(app: &tauri::App<R>, data_dir: PathBuf) -> tauri::Resul
         silence_devices,
         launch_at_login,
         settings_path,
+        schedule_path: schedule::path_in(&data_dir),
     });
 
     let mut tray = TrayIconBuilder::with_id("wane")
@@ -102,6 +113,7 @@ fn handle<R: Runtime>(app: &AppHandle<R>, event: &MenuEvent) {
     let result = match id {
         SHOW_HIDE => with_window(app, |w| window::toggle_visibility(w).map(|_| ())),
         EDIT_SCHEDULE => editor::open(app).map_err(|e| e.to_string()),
+        OPEN_SCHEDULE_FILE => open_schedule_file(app),
         QUIT => {
             app.exit(0);
             Ok(())
@@ -220,5 +232,21 @@ fn show_alert(message: &str) {
             });
         }
         Err(e) => eprintln!("alert: {e}: {message}"),
+    }
+}
+
+/// Opens `schedule.toml` in the default text editor, for users who prefer the
+/// file (e.g. to keep comments, which the in-app editor does not preserve).
+fn open_schedule_file<R: Runtime>(app: &AppHandle<R>) -> Result<(), String> {
+    let state = app.state::<MenuState<R>>();
+    let status = std::process::Command::new("/usr/bin/open")
+        .arg("-t")
+        .arg(&state.schedule_path)
+        .status()
+        .map_err(|e| e.to_string())?;
+    if status.success() {
+        Ok(())
+    } else {
+        Err(format!("open exited with {status}"))
     }
 }

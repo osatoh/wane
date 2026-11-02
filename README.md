@@ -20,6 +20,7 @@ Wane has no Dock icon. Use its menu bar item:
 - **Show / Hide** the window
 - **Always on Top** (on by default)
 - **Edit Schedule…** opens an editor window to add, edit and delete entries
+- **Open Schedule File…** opens `schedule.toml` in your default text editor (the editor window does not keep comments in the file)
 - **Silence iPhone/Watch While Using Mac** (off by default)
 - **Launch at Login** (on by default)
 - **Quit**
@@ -32,7 +33,7 @@ The schedule is stored at:
 ~/Library/Application Support/Wane/schedule.toml
 ```
 
-Edit it from **Edit Schedule…** or in any text editor. Wane creates this file with a default schedule on first launch. Wane watches the file and reloads it when you save it, so there is no need to restart. If the file is invalid, Wane keeps using the last valid schedule and shows a short error in the window.
+Edit it from **Edit Schedule…**, or open it in a text editor from **Open Schedule File…**. Wane creates this file with a default schedule on first launch. Wane watches the file and reloads it when you save it, so there is no need to restart. If the file is invalid, Wane keeps using the last valid schedule and shows a short error in the window.
 
 Each `[[entry]]` has a `time` (`HH:MM`, 24-hour, local time) and a `title`. The time is when that activity **starts**:
 
