@@ -15,7 +15,7 @@ Wane can optionally silence Reminders notifications on iPhone / Watch while the 
 ## 2. Platform & Stack
 
 - macOS 14 (Sonoma) or later
-- Tauri v2 (Rust backend, HTML/CSS/JS frontend)
+- Tauri v2 (Rust backend, TypeScript frontend built with Vite)
 - Native window tweaks via `objc2-app-kit` where Tauri's options are not enough
 - No EventKit, no Reminders permission
 

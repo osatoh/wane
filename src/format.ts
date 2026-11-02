@@ -1,7 +1,7 @@
 // Hover-only number formatting (Spec §5).
 
 // Remaining time, rounded up so "1 min" shows until the switch actually happens.
-export function formatRemaining(secs) {
+export function formatRemaining(secs: number): string {
   const total = Math.max(0, Math.ceil(secs / 60));
   if (total < 60) return `${total} min`;
   const h = Math.floor(total / 60);

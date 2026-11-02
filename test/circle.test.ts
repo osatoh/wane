@@ -1,6 +1,6 @@
-import { test } from "node:test";
+import { test } from "vitest";
 import assert from "node:assert/strict";
-import { wedgePath } from "../src/renderers/circle.js";
+import { wedgePath } from "../src/renderers/circle";
 
 test("full fraction is a full circle", () => {
   assert.match(wedgePath(1, 50), /^M 50 0 A 50 50 0 1 1 50 100 A 50 50 0 1 1 50 0 Z$/);

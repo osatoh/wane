@@ -4,12 +4,21 @@
 //   const r = createXxxRenderer(container);
 //   r.update(fraction, { refill });  // fraction in [0, 1]; refill = task switch
 
+export interface UpdateOptions {
+  // True on a task switch: plays the longer refill transition.
+  refill?: boolean;
+}
+
+export interface Renderer {
+  update(fraction: number, options?: UpdateOptions): void;
+}
+
 const SVG_NS = "http://www.w3.org/2000/svg";
 const R = 50;
 
 // SVG path of the remaining wedge: from its moving edge clockwise to 12 o'clock.
 // It is drawn from 12 o'clock counterclockwise, so the edge advances clockwise as f falls.
-export function wedgePath(fraction, r) {
+export function wedgePath(fraction: number, r: number): string {
   const f = clamp(fraction);
   const angle = f * 2 * Math.PI;
   const x = round(r - r * Math.sin(angle));
@@ -24,11 +33,11 @@ export function wedgePath(fraction, r) {
   return `M ${r} ${r} L ${r} 0 A ${r} ${r} 0 ${largeArc} 0 ${x} ${y} Z`;
 }
 
-function clamp(f) {
+function clamp(f: number): number {
   return Math.min(1, Math.max(0, f));
 }
 
-function round(n) {
+function round(n: number): number {
   return Math.round(n * 1000) / 1000;
 }
 
@@ -36,13 +45,13 @@ function round(n) {
 const STEP_MS = 400;
 const REFILL_MS = 700;
 
-export function createCircleRenderer(container) {
+export function createCircleRenderer(container: Element): Renderer {
   const svg = document.createElementNS(SVG_NS, "svg");
   svg.setAttribute("viewBox", `0 0 ${2 * R} ${2 * R}`);
   const track = document.createElementNS(SVG_NS, "circle");
-  track.setAttribute("cx", R);
-  track.setAttribute("cy", R);
-  track.setAttribute("r", R);
+  track.setAttribute("cx", String(R));
+  track.setAttribute("cy", String(R));
+  track.setAttribute("r", String(R));
   track.classList.add("gauge-track");
   const fill = document.createElementNS(SVG_NS, "path");
   fill.classList.add("gauge-fill");
@@ -50,20 +59,19 @@ export function createCircleRenderer(container) {
   container.replaceChildren(svg);
 
   const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)");
-  let shown = null;
+  let shown: number | null = null;
   let frame = 0;
 
-  function draw(f) {
+  function draw(f: number): void {
     shown = f;
     fill.setAttribute("d", wedgePath(f, R));
   }
 
   // Animate once per update; nothing runs between minute steps (Spec §6).
-  function animateTo(target, ms) {
+  function animateTo(from: number, target: number, ms: number): void {
     cancelAnimationFrame(frame);
-    const from = shown;
     const start = performance.now();
-    const tick = (t) => {
+    const tick = (t: number): void => {
       const p = Math.min(1, (t - start) / ms);
       const eased = 1 - (1 - p) ** 3;
       draw(from + (target - from) * eased);
@@ -73,13 +81,13 @@ export function createCircleRenderer(container) {
   }
 
   return {
-    update(fraction, { refill = false } = {}) {
+    update(fraction: number, { refill = false }: UpdateOptions = {}): void {
       const target = clamp(fraction);
       if (shown === null || reducedMotion.matches) {
         cancelAnimationFrame(frame);
         draw(target);
       } else {
-        animateTo(target, refill ? REFILL_MS : STEP_MS);
+        animateTo(shown, target, refill ? REFILL_MS : STEP_MS);
       }
     },
   };

@@ -1,8 +1,8 @@
-import { test } from "node:test";
+import { test } from "vitest";
 import assert from "node:assert/strict";
-import { isTaskSwitch } from "../src/view.js";
+import { isTaskSwitch } from "../src/view";
 
-const s = (title, time, nextTime = "23:00") => ({
+const s = (title: string, time: string, nextTime = "23:00") => ({
   current: { title, time },
   next: { title: "n", time: nextTime },
 });
