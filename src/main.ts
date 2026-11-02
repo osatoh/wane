@@ -1,6 +1,6 @@
 // Wires backend events to the display (Spec §5).
 //
-// Events from the backend (emitted by the update triggers, #4 / #5):
+// Events from the backend (src-tauri/src/display.rs):
 //   "wane://state"          payload: state object (see view.js)
 //   "wane://schedule-error" payload: string message, or null to clear it
 // The frontend emits "wane://ready" once listening, so the backend can send the current state

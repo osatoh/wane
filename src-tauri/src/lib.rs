@@ -1,9 +1,10 @@
 use std::sync::Mutex;
 
-use tauri::{Emitter, Manager};
+use tauri::{Listener, Manager};
 
-use watch::{ScheduleState, UpdatedEvent};
+use watch::ScheduleState;
 
+pub mod display;
 pub mod focus;
 pub mod login_item;
 mod menu;
@@ -59,30 +60,33 @@ pub fn run() {
             }
             app.manage(Mutex::new(state));
 
+            // The frontend asks for its first draw once it is listening (Spec §5)
+            let handle = app.handle().clone();
+            app.listen(display::READY_EVENT, move |_| {
+                let state = handle.state::<Mutex<ScheduleState>>();
+                let state = state.lock().unwrap_or_else(|e| e.into_inner());
+                display::emit_all(&handle, &state);
+            });
+
             let handle = app.handle().clone();
             let watch_path = path.clone();
             let watcher = watch::watch(&path, move || {
                 let state = handle.state::<Mutex<ScheduleState>>();
-                let event = {
-                    let mut state = state.lock().unwrap_or_else(|e| e.into_inner());
-                    watch::reload(&watch_path, &mut state);
-                    state.event()
-                };
-                if let Some(err) = &event.error {
+                let mut state = state.lock().unwrap_or_else(|e| e.into_inner());
+                watch::reload(&watch_path, &mut state);
+                if let Some(err) = state.error() {
                     eprintln!("schedule: {err}");
                 }
-                // The frontend re-evaluates the state and redraws on this event (Spec §6)
-                if let Err(e) = handle.emit(watch::UPDATED_EVENT, event) {
-                    eprintln!("schedule: cannot emit update: {e}");
-                }
+                // Redraw with the reloaded schedule (Spec §6)
+                display::emit_all(&handle, &state);
             });
             // Minute timer plus wake / clock / time zone changes (Spec §6).
-            // App launch is covered by the frontend's first draw.
+            // App launch is covered by the frontend's ready event.
             let handle = app.handle().clone();
             let poke = tick::spawn(move || {
-                if let Err(e) = handle.emit(tick::TICK_EVENT, ()) {
-                    eprintln!("tick: cannot emit: {e}");
-                }
+                let state = handle.state::<Mutex<ScheduleState>>();
+                let state = state.lock().unwrap_or_else(|e| e.into_inner());
+                display::emit_state(&handle, &state);
             });
             #[cfg(target_os = "macos")]
             tick::observe_system_changes(poke);
@@ -98,7 +102,6 @@ pub fn run() {
             }
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![schedule_status])
         .build(tauri::generate_context!())
         .expect("error while building tauri application")
         .run(|app, event| {
@@ -109,10 +112,4 @@ pub fn run() {
                 focus.shutdown(focus::OFF_TIMEOUT);
             }
         });
-}
-
-/// Current schedule error for the frontend's first draw; later changes arrive as events.
-#[tauri::command]
-fn schedule_status(state: tauri::State<'_, Mutex<ScheduleState>>) -> UpdatedEvent {
-    state.lock().unwrap_or_else(|e| e.into_inner()).event()
 }

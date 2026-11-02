@@ -5,7 +5,6 @@ use std::sync::mpsc;
 use std::time::Duration;
 
 use notify::{RecommendedWatcher, RecursiveMode, Watcher};
-use serde::Serialize;
 
 use crate::schedule::{self, Schedule, ScheduleError};
 
@@ -35,21 +34,6 @@ impl ScheduleState {
             Err(e) => self.error = Some(e.to_string()),
         }
     }
-
-    pub fn event(&self) -> UpdatedEvent {
-        UpdatedEvent {
-            error: self.error.clone(),
-        }
-    }
-}
-
-/// Event the frontend listens to; it re-evaluates the state and redraws on each one.
-pub const UPDATED_EVENT: &str = "schedule-updated";
-
-#[derive(Debug, Clone, PartialEq, Serialize)]
-pub struct UpdatedEvent {
-    /// Short message to show in the window; `None` when the file is valid.
-    pub error: Option<String>,
 }
 
 /// Wait after the first event so a burst from one save (write + rename) reloads once.
@@ -138,7 +122,7 @@ mod tests {
         assert!(st.error().is_some());
         st.apply(schedule::parse(VALID_A));
         assert_eq!(first_time(&st), "07:00");
-        assert_eq!(st.event(), UpdatedEvent { error: None });
+        assert!(st.error().is_none());
     }
 
     #[test]
@@ -147,7 +131,7 @@ mod tests {
         st.apply(schedule::parse(VALID_A));
         st.apply(schedule::parse("[[entry]\n"));
         assert_eq!(first_time(&st), "07:00");
-        let err = st.event().error.unwrap();
+        let err = st.error().unwrap();
         assert!(err.starts_with("invalid TOML"), "{err}");
     }
 
