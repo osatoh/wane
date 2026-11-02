@@ -64,11 +64,16 @@ pub fn save(path: &Path, settings: &Settings) -> std::io::Result<()> {
         std::fs::create_dir_all(dir)?;
     }
     let json = serde_json::to_string_pretty(settings).map_err(std::io::Error::other)?;
-    // Write a sibling file and rename it over the original so a failed write
-    // never leaves a truncated settings file behind. The name is unique per
-    // process and call, and create_new makes sure no other writer shares it.
+    write_atomic(path, json.as_bytes())
+}
+
+/// Writes a sibling file and renames it over `path`, so a failed write never
+/// leaves a truncated file behind and file watchers never see a partial one.
+/// The name is unique per process and call, and create_new makes sure no
+/// other writer shares it.
+pub fn write_atomic(path: &Path, bytes: &[u8]) -> std::io::Result<()> {
     let tmp = unique_tmp_path(path);
-    let result = write_new(&tmp, json.as_bytes()).and_then(|()| std::fs::rename(&tmp, path));
+    let result = write_new(&tmp, bytes).and_then(|()| std::fs::rename(&tmp, path));
     if result.is_err() {
         let _ = std::fs::remove_file(&tmp);
     }
